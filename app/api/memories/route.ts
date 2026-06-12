@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createAccessToken } from "../../../lib/memoryToken";
-import { saveMockMemory, shouldUseMockMemoryStore } from "../../../lib/mockMemoryStore";
 import { getSupabaseServerClient } from "../../../lib/supabaseServer";
 
 type CreateMemoryPayload = {
@@ -26,41 +25,20 @@ export async function POST(request: NextRequest) {
 
     const accessToken = createAccessToken();
     const createdAt = new Date().toISOString();
-    const record = {
-      id: crypto.randomUUID(),
-      title: payload.title?.trim() || "Memory Room 기록",
-      recipient: payload.recipient?.trim() || null,
-      messageText: payload.messageText || "",
-      selectedQuestions: payload.selectedQuestions ?? [],
-      answers: payload.answers ?? [],
-      audioUrl: payload.audioUrl || null,
-      createdAt,
-      email,
-      accessToken,
-    };
-
-    if (shouldUseMockMemoryStore()) {
-      saveMockMemory(record);
-      return NextResponse.json({
-        id: record.id,
-        accessToken: record.accessToken,
-        url: `/memory/${record.accessToken}`,
-      });
-    }
-
     const supabase = getSupabaseServerClient();
+
     const { data, error } = await supabase
       .from("memories")
       .insert({
-        title: record.title,
-        recipient: record.recipient,
-        message_text: record.messageText,
-        selected_questions: record.selectedQuestions,
-        answers: record.answers,
-        audio_url: record.audioUrl,
-        created_at: record.createdAt,
-        email: record.email,
-        access_token: record.accessToken,
+        title: payload.title?.trim() || "Memory Room 기록",
+        recipient: payload.recipient?.trim() || null,
+        message_text: payload.messageText || "",
+        selected_questions: payload.selectedQuestions ?? [],
+        answers: payload.answers ?? [],
+        audio_url: payload.audioUrl || null,
+        created_at: createdAt,
+        email,
+        access_token: accessToken,
       })
       .select("id, access_token")
       .single();

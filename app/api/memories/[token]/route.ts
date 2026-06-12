@@ -1,5 +1,4 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getMockMemory, shouldUseMockMemoryStore } from "../../../../lib/mockMemoryStore";
 import { getSupabaseServerClient, type SupabaseMemoryRow } from "../../../../lib/supabaseServer";
 
 export async function GET(
@@ -10,25 +9,6 @@ export async function GET(
     const { token } = await context.params;
     if (!token) {
       return NextResponse.json({ error: "결과물을 찾을 수 없습니다." }, { status: 404 });
-    }
-
-    if (shouldUseMockMemoryStore()) {
-      const memory = getMockMemory(token);
-      if (!memory) {
-        return NextResponse.json({ error: "결과물을 찾을 수 없습니다." }, { status: 404 });
-      }
-
-      return NextResponse.json({
-        id: memory.id,
-        title: memory.title,
-        recipient: memory.recipient,
-        messageText: memory.messageText,
-        selectedQuestions: memory.selectedQuestions,
-        answers: memory.answers,
-        audioUrl: memory.audioUrl,
-        createdAt: memory.createdAt,
-        email: memory.email,
-      });
     }
 
     const supabase = getSupabaseServerClient();
