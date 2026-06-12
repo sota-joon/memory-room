@@ -1,6 +1,7 @@
 "use client";
 
 import { FormEvent, useEffect, useMemo, useRef, useState } from "react";
+import { motion } from "framer-motion";
 import {
   ArrowLeft,
   ArrowRight,
@@ -9,11 +10,14 @@ import {
   FileAudio,
   Mic,
   Music2,
+  Play,
+  RotateCcw,
   Save,
   Share2,
   Sparkles,
   Square,
   Video,
+  Volume2,
 } from "lucide-react";
 import {
   createAudioFileName,
@@ -29,6 +33,7 @@ import {
   type StudioProfile,
 } from "../lib/studioProducts";
 import { startVideoRecorder, stopStream, type VideoRecorderSession } from "../lib/videoRecorder";
+import { cancelSpeech, speakKorean } from "../lib/speech";
 import type { ContentType, Locale } from "../lib/types";
 
 type Props = {
@@ -70,8 +75,10 @@ export function StudioExperience({ contentType, locale, onBack }: Props) {
   const [message, setMessage] = useState("");
   const [isAudioRecording, setIsAudioRecording] = useState(false);
   const [isVideoRecording, setIsVideoRecording] = useState(false);
+  const [isQuestionSpeaking, setIsQuestionSpeaking] = useState(false);
   const [previewStream, setPreviewStream] = useState<MediaStream | null>(null);
   const audioRef = useRef<AudioRecorderSession | null>(null);
+  const audioPlaybackRef = useRef<HTMLAudioElement | null>(null);
   const videoRef = useRef<VideoRecorderSession | null>(null);
   const videoPreviewRef = useRef<HTMLVideoElement | null>(null);
 
@@ -81,7 +88,9 @@ export function StudioExperience({ contentType, locale, onBack }: Props) {
   );
 
   useEffect(() => {
-    window.history.replaceState(null, "", `/?studio=${contentType}`);
+    if (window.location.pathname === "/") {
+      window.history.replaceState(null, "", `/?studio=${contentType}`);
+    }
     const stored = window.localStorage.getItem(`memoryVaultStudio:${contentType}`);
     if (stored) {
       try {
@@ -95,6 +104,7 @@ export function StudioExperience({ contentType, locale, onBack }: Props) {
     }
 
     return () => {
+      cancelSpeech();
       stopAudioStream(audioRef.current?.stream ?? null);
       stopStream(previewStream);
     };
@@ -123,8 +133,10 @@ export function StudioExperience({ contentType, locale, onBack }: Props) {
   }
 
   function startInterview() {
-    setDialogues([{ question: createStudioQuestion(kind, profile, []) }]);
+    const firstQuestion = createStudioQuestion(kind, profile, []);
+    setDialogues([{ question: firstQuestion }]);
     setStep("interview");
+    speakStudioQuestion(firstQuestion);
   }
 
   function submitAnswer(event: FormEvent<HTMLFormElement>) {
@@ -143,8 +155,18 @@ export function StudioExperience({ contentType, locale, onBack }: Props) {
       return;
     }
 
-    setDialogues([...answered, { question: createStudioQuestion(kind, profile, answers) }]);
+    const nextQuestion = createStudioQuestion(kind, profile, answers);
+    setDialogues([...answered, { question: nextQuestion }]);
     setAnswer("");
+    speakStudioQuestion(nextQuestion);
+  }
+
+  function speakStudioQuestion(question: string) {
+    if (!question) return;
+    speakKorean(question, {
+      onEnd: () => setIsQuestionSpeaking(false),
+      onStart: () => setIsQuestionSpeaking(true),
+    });
   }
 
   async function toggleAudioRecording() {
@@ -162,12 +184,30 @@ export function StudioExperience({ contentType, locale, onBack }: Props) {
     }
 
     try {
-      setMessage("");
+      setMessage(copy.microphonePrompt);
+      if (audioUrl) {
+        URL.revokeObjectURL(audioUrl);
+        setAudioUrl("");
+      }
       audioRef.current = await startAudioRecorder();
       setIsAudioRecording(true);
+      setMessage(copy.audioRecordingStarted);
     } catch (error) {
       setMessage(error instanceof Error ? error.message : copy.audioError);
     }
+  }
+
+  function playRecordedAudio() {
+    audioPlaybackRef.current?.play().catch(() => {
+      setMessage(copy.audioPlaybackError);
+    });
+  }
+
+  function resetAudioRecording() {
+    if (isAudioRecording) return;
+    if (audioUrl) URL.revokeObjectURL(audioUrl);
+    setAudioUrl("");
+    setMessage("");
   }
 
   async function toggleVideoRecording() {
@@ -186,18 +226,24 @@ export function StudioExperience({ contentType, locale, onBack }: Props) {
     }
 
     try {
-      setMessage("");
+      setMessage(copy.cameraPrompt);
       const recorder = await startVideoRecorder();
       videoRef.current = recorder;
       setPreviewStream(recorder.stream);
       setIsVideoRecording(true);
+      setMessage(copy.videoRecordingStarted);
     } catch (error) {
       setMessage(error instanceof Error ? error.message : copy.videoError);
     }
   }
 
   return (
-    <section className="studio-shell">
+    <motion.section
+      animate={{ opacity: 1, y: 0 }}
+      className="studio-shell"
+      initial={{ opacity: 0, y: 16 }}
+      transition={{ duration: 0.75, ease: [0.22, 1, 0.36, 1] }}
+    >
       <div className="studio-topbar">
         <button className="secondary-button compact" type="button" onClick={onBack}>
           <ArrowLeft size={17} aria-hidden="true" />
@@ -252,6 +298,10 @@ export function StudioExperience({ contentType, locale, onBack }: Props) {
           </div>
 
           <div className="studio-control-board">
+            <div className="studio-permission-note">
+              <p>{copy.permissionGuide}</p>
+            </div>
+
             {(kind === "kpop") && (
               <div className="studio-control-card studio-accent-card">
                 <Music2 size={28} aria-hidden="true" />
@@ -274,13 +324,26 @@ export function StudioExperience({ contentType, locale, onBack }: Props) {
                 <Mic size={28} aria-hidden="true" />
                 <h3>{copy.audioRecord}</h3>
                 <p>{copy.audioBody}</p>
+                <p className={`recording-state ${isAudioRecording ? "is-recording" : ""}`}>
+                  {isAudioRecording ? copy.recordingNow : audioUrl ? copy.recordingReady : copy.recordingIdle}
+                </p>
                 <button className={`secondary-button ${isAudioRecording ? "recording-button" : ""}`} type="button" onClick={toggleAudioRecording}>
                   {isAudioRecording ? <Square size={17} aria-hidden="true" /> : <Mic size={17} aria-hidden="true" />}
                   {isAudioRecording ? copy.stopAudio : copy.startAudio}
                 </button>
                 {audioUrl && (
                   <div className="studio-media-preview">
-                    <audio src={audioUrl} controls />
+                    <audio ref={audioPlaybackRef} src={audioUrl} controls preload="metadata" />
+                    <div className="audio-action-row">
+                      <button className="secondary-button compact" type="button" onClick={playRecordedAudio}>
+                        <Play size={16} aria-hidden="true" />
+                        {copy.listenAudio}
+                      </button>
+                      <button className="secondary-button compact" type="button" onClick={resetAudioRecording}>
+                        <RotateCcw size={16} aria-hidden="true" />
+                        {copy.recordAgain}
+                      </button>
+                    </div>
                     <a className="secondary-button download-link" href={audioUrl} download={createAudioFileName(profile.name)}>
                       <Download size={16} aria-hidden="true" />
                       {copy.downloadAudio}
@@ -295,6 +358,9 @@ export function StudioExperience({ contentType, locale, onBack }: Props) {
                 <Camera size={28} aria-hidden="true" />
                 <h3>{copy.videoRecord}</h3>
                 <p>{copy.videoBody}</p>
+                <p className={`recording-state ${isVideoRecording ? "is-recording" : ""}`}>
+                  {isVideoRecording ? copy.videoRecordingNow : videoUrl ? copy.videoRecordingReady : copy.videoRecordingIdle}
+                </p>
                 <button className={`secondary-button ${isVideoRecording ? "recording-button" : ""}`} type="button" onClick={toggleVideoRecording}>
                   {isVideoRecording ? <Square size={17} aria-hidden="true" /> : <Video size={17} aria-hidden="true" />}
                   {isVideoRecording ? copy.stopVideo : copy.startVideo}
@@ -345,6 +411,14 @@ export function StudioExperience({ contentType, locale, onBack }: Props) {
             ))}
 
             <form className="dialogue-answer" onSubmit={submitAnswer}>
+              <button
+                className={`secondary-button compact ${isQuestionSpeaking ? "recording-button" : ""}`}
+                type="button"
+                onClick={() => speakStudioQuestion(dialogues[dialogues.length - 1]?.question ?? "")}
+              >
+                <Volume2 size={17} aria-hidden="true" />
+                {isQuestionSpeaking ? copy.questionSpeaking : copy.listenQuestion}
+              </button>
               <textarea
                 value={answer}
                 onChange={(event) => setAnswer(event.target.value)}
@@ -408,7 +482,7 @@ export function StudioExperience({ contentType, locale, onBack }: Props) {
           {message && <p className="helper-message centered-message">{message}</p>}
         </section>
       )}
-    </section>
+    </motion.section>
   );
 }
 
@@ -507,15 +581,21 @@ const studioCopy = {
     audioBody: "마이크 권한을 허용하면 브라우저에서 바로 녹음됩니다.",
     audioError: "오디오 녹음을 시작하지 못했습니다.",
     audioPreparing: "오디오 파일을 정리하고 있습니다.",
+    audioPlaybackError: "녹음 파일을 재생하지 못했습니다. 브라우저의 소리 설정을 확인해주세요.",
     audioReady: "오디오 기록이 준비되었습니다.",
+    audioRecordingStarted: "음성 녹음 중입니다. 말을 마치면 녹음 중지를 눌러주세요.",
     audioRecord: "마이크 녹음",
-    back: "상품 다시 선택",
+    back: "메인으로 돌아가기",
     brandLine: "AI 기반 기록 스튜디오",
     dialogueBody: "AI는 답변의 핵심 단어와 감정을 따라 다음 질문을 만듭니다.",
     downloadAudio: "오디오 다운로드",
     downloadVideo: "영상 다운로드",
     finishInterview: "인터뷰 마무리",
     mode: "진행 방식",
+    cameraPrompt: "카메라와 마이크 권한 창이 뜨면 허용을 눌러주세요.",
+    listenAudio: "녹음 들어보기",
+    listenQuestion: "질문 음성 듣기",
+    microphonePrompt: "마이크 권한 창이 뜨면 허용을 눌러주세요.",
     mood: "원하는 분위기",
     moodPlaceholder: "예: 담담하게, 따뜻하게, 무대처럼",
     name: "이름",
@@ -525,6 +605,12 @@ const studioCopy = {
     output: "원하는 결과물",
     outputPlaceholder: "예: 편지, 영상, 음성, 카드",
     prepareStudio: "스튜디오 입장",
+    permissionGuide: "녹음과 녹화는 이 브라우저 안에서만 진행됩니다. 버튼을 누르면 카메라/마이크 권한 요청이 나타납니다.",
+    questionSpeaking: "질문 읽는 중...",
+    recordAgain: "다시 녹음하기",
+    recordingIdle: "버튼을 누르면 마이크 권한 요청 후 녹음이 시작됩니다.",
+    recordingNow: "녹음 중입니다. 말을 마치면 녹음 중지를 눌러주세요.",
+    recordingReady: "녹음이 완료되었습니다. 아래에서 바로 들어볼 수 있습니다.",
     recordedMedia: "녹음/녹화 기록",
     refine: "인터뷰 더 다듬기",
     relationship: "관계",
@@ -538,7 +624,7 @@ const studioCopy = {
     setupBody: "방문 전 또는 입장 직후에 필요한 정보를 먼저 남깁니다. 이후 화면은 상품별로 다르게 진행됩니다.",
     songSelect: "곡 / MR 선택",
     songSelectBody: "녹음할 곡명이나 MR 파일을 준비합니다.",
-    startAudio: "녹음 시작",
+    startAudio: "음성 녹음 시작",
     startInterview: "AI 인터뷰 시작",
     startVideo: "녹화 시작",
     stepFour: "04 결과물 미리보기",
@@ -555,6 +641,10 @@ const studioCopy = {
     videoPreparing: "영상 파일을 정리하고 있습니다.",
     videoReady: "영상 기록이 준비되었습니다.",
     videoRecord: "카메라 녹화",
+    videoRecordingIdle: "버튼을 누르면 카메라와 마이크 권한 요청 후 녹화가 시작됩니다.",
+    videoRecordingNow: "영상 기록 중입니다. 마치면 녹화 중지를 눌러주세요.",
+    videoRecordingReady: "영상 기록이 완료되었습니다. 아래에서 바로 확인할 수 있습니다.",
+    videoRecordingStarted: "영상 기록 중입니다. 마치면 녹화 중지를 눌러주세요.",
     visibility: "공개 여부",
     visibilityPlaceholder: "예: 비공개, 10년 뒤 공개, 가족 공유",
   },
@@ -567,15 +657,21 @@ const studioCopy = {
     audioBody: "Allow microphone access to record directly in the browser.",
     audioError: "Could not start audio recording.",
     audioPreparing: "Preparing audio file.",
+    audioPlaybackError: "Could not play the recording. Please check your browser audio settings.",
     audioReady: "Audio record is ready.",
+    audioRecordingStarted: "Voice recording is running. Press stop when you are finished.",
     audioRecord: "Microphone recording",
-    back: "Choose another product",
+    back: "Back to main",
     brandLine: "AI-powered recording studio",
     dialogueBody: "The AI creates the next question from the key words and emotion in your answer.",
     downloadAudio: "Download audio",
     downloadVideo: "Download video",
     finishInterview: "Finish interview",
     mode: "Mode",
+    cameraPrompt: "When the camera and microphone permission prompt appears, choose Allow.",
+    listenAudio: "Listen to recording",
+    listenQuestion: "Listen to question",
+    microphonePrompt: "When the microphone permission prompt appears, choose Allow.",
     mood: "Desired mood",
     moodPlaceholder: "Example: calm, warm, cinematic",
     name: "Name",
@@ -585,6 +681,12 @@ const studioCopy = {
     output: "Desired output",
     outputPlaceholder: "Example: letter, video, audio, card",
     prepareStudio: "Enter studio",
+    permissionGuide: "Recording happens only in this browser. Press a button and allow camera or microphone access.",
+    questionSpeaking: "Reading question...",
+    recordAgain: "Record again",
+    recordingIdle: "Press the button to allow microphone access and start recording.",
+    recordingNow: "Recording now. Press stop when you are finished.",
+    recordingReady: "Recording complete. You can listen below.",
     recordedMedia: "Recorded media",
     refine: "Refine interview",
     relationship: "Relationship",
@@ -598,7 +700,7 @@ const studioCopy = {
     setupBody: "Add the details needed before or right after entering the studio. The next screen changes by product.",
     songSelect: "Song / MR selection",
     songSelectBody: "Prepare a song title or upload an MR file.",
-    startAudio: "Start recording",
+    startAudio: "Start voice recording",
     startInterview: "Start AI interview",
     startVideo: "Start video",
     stepFour: "04 Result preview",
@@ -615,6 +717,10 @@ const studioCopy = {
     videoPreparing: "Preparing video file.",
     videoReady: "Video record is ready.",
     videoRecord: "Camera recording",
+    videoRecordingIdle: "Press the button to allow camera and microphone access and start recording.",
+    videoRecordingNow: "Video recording is running. Press stop when you are finished.",
+    videoRecordingReady: "Video recording complete. You can watch it below.",
+    videoRecordingStarted: "Video recording is running. Press stop when you are finished.",
     visibility: "Visibility",
     visibilityPlaceholder: "Example: private, open in 10 years, share with family",
   },
@@ -627,15 +733,21 @@ const studioCopy = {
     audioBody: "マイクの許可をすると、ブラウザで直接録音できます。",
     audioError: "音声録音を開始できませんでした。",
     audioPreparing: "音声ファイルを準備しています。",
+    audioPlaybackError: "録音を再生できませんでした。ブラウザの音声設定を確認してください。",
     audioReady: "音声記録の準備ができました。",
+    audioRecordingStarted: "録音中です。話し終えたら停止してください。",
     audioRecord: "マイク録音",
-    back: "商品を選び直す",
+    back: "メインへ戻る",
     brandLine: "AI記録スタジオ",
     dialogueBody: "AIは回答のキーワードと感情から次の質問を作ります。",
     downloadAudio: "音声をダウンロード",
     downloadVideo: "映像をダウンロード",
     finishInterview: "インタビューを終了",
     mode: "進行方式",
+    cameraPrompt: "カメラとマイクの許可画面が出たら、許可を押してください。",
+    listenAudio: "録音を聞く",
+    listenQuestion: "質問を聞く",
+    microphonePrompt: "マイクの許可画面が出たら、許可を押してください。",
     mood: "希望する雰囲気",
     moodPlaceholder: "例：落ち着いて、あたたかく、映画のように",
     name: "名前",
@@ -645,6 +757,12 @@ const studioCopy = {
     output: "希望する成果物",
     outputPlaceholder: "例：手紙、映像、音声、カード",
     prepareStudio: "スタジオに入る",
+    permissionGuide: "録音と録画はこのブラウザ内で行われます。ボタンを押すと権限確認が表示されます。",
+    questionSpeaking: "質問を読み上げています...",
+    recordAgain: "もう一度録音する",
+    recordingIdle: "ボタンを押すと、マイク許可の後に録音が始まります。",
+    recordingNow: "録音中です。話し終えたら停止してください。",
+    recordingReady: "録音が完了しました。下で確認できます。",
     recordedMedia: "録音・録画記録",
     refine: "インタビューを整える",
     relationship: "関係",
@@ -675,6 +793,10 @@ const studioCopy = {
     videoPreparing: "映像ファイルを準備しています。",
     videoReady: "映像記録の準備ができました。",
     videoRecord: "カメラ録画",
+    videoRecordingIdle: "ボタンを押すと、カメラとマイクの許可後に録画が始まります。",
+    videoRecordingNow: "録画中です。終わったら停止してください。",
+    videoRecordingReady: "録画が完了しました。下で確認できます。",
+    videoRecordingStarted: "録画中です。終わったら停止してください。",
     visibility: "公開設定",
     visibilityPlaceholder: "例：非公開、10年後に公開、家族に共有",
   },
@@ -687,15 +809,21 @@ const studioCopy = {
     audioBody: "允许麦克风权限后，可直接在浏览器中录音。",
     audioError: "无法开始音频录制。",
     audioPreparing: "正在整理音频文件。",
+    audioPlaybackError: "无法播放录音。请检查浏览器声音设置。",
     audioReady: "音频记录已准备好。",
+    audioRecordingStarted: "正在录音。说完后请点击停止。",
     audioRecord: "麦克风录音",
-    back: "重新选择产品",
+    back: "返回首页",
     brandLine: "AI记录工作室",
     dialogueBody: "AI会根据回答中的关键词和情绪生成下一道问题。",
     downloadAudio: "下载音频",
     downloadVideo: "下载视频",
     finishInterview: "结束访谈",
     mode: "进行方式",
+    cameraPrompt: "出现摄像头和麦克风权限提示时，请点击允许。",
+    listenAudio: "试听录音",
+    listenQuestion: "播放问题语音",
+    microphonePrompt: "出现麦克风权限提示时，请点击允许。",
     mood: "想要的氛围",
     moodPlaceholder: "例如：平静、温暖、像电影一样",
     name: "姓名",
@@ -705,6 +833,12 @@ const studioCopy = {
     output: "想要的结果",
     outputPlaceholder: "例如：信件、视频、音频、卡片",
     prepareStudio: "进入工作室",
+    permissionGuide: "录音和录像只在此浏览器中进行。点击按钮后会出现权限请求。",
+    questionSpeaking: "正在朗读问题...",
+    recordAgain: "重新录音",
+    recordingIdle: "点击按钮后，将请求麦克风权限并开始录音。",
+    recordingNow: "正在录音。说完后请点击停止。",
+    recordingReady: "录音完成。可在下方试听。",
     recordedMedia: "录音/录像记录",
     refine: "继续整理访谈",
     relationship: "关系",
@@ -735,6 +869,10 @@ const studioCopy = {
     videoPreparing: "正在整理视频文件。",
     videoReady: "视频记录已准备好。",
     videoRecord: "摄像头录像",
+    videoRecordingIdle: "点击按钮后，将请求摄像头和麦克风权限并开始录像。",
+    videoRecordingNow: "正在录像。结束后请点击停止。",
+    videoRecordingReady: "录像完成。可在下方查看。",
+    videoRecordingStarted: "正在录像。结束后请点击停止。",
     visibility: "公开设置",
     visibilityPlaceholder: "例如：不公开、10年后公开、与家人分享",
   },

@@ -28,6 +28,7 @@ export type I18nMessages = {
     futureMoments: string[];
     heroSubtitle: string;
     heroTitle: string;
+    mainCta: string;
     mainMethods: string;
     moreMethods: string;
     popular: string;
@@ -37,8 +38,11 @@ export type I18nMessages = {
     record: string;
     resultPreview: string;
     resultSamples: Array<{ body: string; eyebrow: string; tag: string; title: string }>;
+    steps: Array<{ body: string; title: string }>;
     timeline: string;
     timelineItems: string[];
+    trustBody: string;
+    trustTitle: string;
     urgencyLine: string;
     visitorExperiences: string;
   };

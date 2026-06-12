@@ -17,7 +17,7 @@ export const messages: Record<Locale, I18nMessages> = {
 const LOCALE_STORAGE_KEY = "memory-vault-locale";
 
 export function getMessages(locale: Locale) {
-  return messages[locale] ?? messages.en;
+  return messages[locale] ?? messages.ko;
 }
 
 export function detectBrowserLocale(language?: string): Locale {
@@ -26,7 +26,7 @@ export function detectBrowserLocale(language?: string): Locale {
   if (value.startsWith("ja")) return "ja";
   if (value.startsWith("zh")) return "zh";
   if (value.startsWith("en")) return "en";
-  return "en";
+  return "ko";
 }
 
 export function loadStoredLocale(): Locale | null {
@@ -49,6 +49,8 @@ export function saveStoredLocale(locale: Locale) {
 }
 
 export function getInitialLocale(): Locale {
-  if (typeof window === "undefined") return "en";
-  return loadStoredLocale() ?? detectBrowserLocale(window.navigator.language);
+  if (typeof window === "undefined") return "ko";
+  const queryLocale = new URLSearchParams(window.location.search).get("lang");
+  if (queryLocale && locales.includes(queryLocale as Locale)) return queryLocale as Locale;
+  return "ko";
 }

@@ -6,6 +6,7 @@ export type VideoRecorderSession = {
 
 const unsupportedMessage =
   "현재 브라우저에서는 영상 기록이 지원되지 않습니다. 최신 Chrome 사용을 권장합니다.";
+const permissionMessage = "카메라와 마이크 권한이 필요합니다. 브라우저 설정에서 카메라와 마이크 접근을 허용해주세요.";
 
 export async function startVideoRecorder(): Promise<VideoRecorderSession> {
   if (typeof navigator === "undefined" || !navigator.mediaDevices?.getUserMedia) {
@@ -17,35 +18,8 @@ export async function startVideoRecorder(): Promise<VideoRecorderSession> {
   }
 
   try {
-    const stream = await navigator.mediaDevices.getUserMedia({
-      audio: true,
-      video: {
-        facingMode: "user",
-        width: { ideal: 960 },
-        height: { ideal: 540 },
-      },
-    });
-    const chunks: BlobPart[] = [];
-    const mediaRecorder = new MediaRecorder(stream, getRecorderOptions());
-
-    mediaRecorder.ondataavailable = (event) => {
-      if (event.data.size > 0) chunks.push(event.data);
-    };
-
-    mediaRecorder.start();
-
-    return {
-      mediaRecorder,
-      stream,
-      stop: () =>
-        new Promise((resolve) => {
-          mediaRecorder.onstop = () => {
-            stopStream(stream);
-            resolve(new Blob(chunks, { type: getSupportedMimeType() }));
-          };
-          if (mediaRecorder.state !== "inactive") mediaRecorder.stop();
-        }),
-    };
+    const stream = await getCameraStream();
+    return createVideoSession(stream);
   } catch (error) {
     throw new Error(getVideoRecorderErrorMessage(error));
   }
@@ -61,14 +35,52 @@ export function createVideoFileName(customerName: string, createdAt = new Date()
   return `memory-interview-${safeName}-${date}.webm`;
 }
 
-function getRecorderOptions() {
+async function getCameraStream() {
+  try {
+    return await navigator.mediaDevices.getUserMedia({
+      audio: true,
+      video: {
+        facingMode: "user",
+        width: { ideal: 960 },
+        height: { ideal: 540 },
+      },
+    });
+  } catch (error) {
+    if (error instanceof DOMException && error.name === "OverconstrainedError") {
+      return navigator.mediaDevices.getUserMedia({ audio: true, video: true });
+    }
+    throw error;
+  }
+}
+
+function createVideoSession(stream: MediaStream): VideoRecorderSession {
+  const chunks: BlobPart[] = [];
   const mimeType = getSupportedMimeType();
-  return mimeType ? { mimeType } : undefined;
+  const mediaRecorder = mimeType ? new MediaRecorder(stream, { mimeType }) : new MediaRecorder(stream);
+
+  mediaRecorder.ondataavailable = (event) => {
+    if (event.data.size > 0) chunks.push(event.data);
+  };
+
+  mediaRecorder.start();
+
+  return {
+    mediaRecorder,
+    stream,
+    stop: () =>
+      new Promise((resolve) => {
+        mediaRecorder.onstop = () => {
+          stopStream(stream);
+          resolve(new Blob(chunks, { type: mimeType || "video/webm" }));
+        };
+        if (mediaRecorder.state !== "inactive") mediaRecorder.stop();
+      }),
+  };
 }
 
 function getSupportedMimeType() {
   const candidates = ["video/webm;codecs=vp9,opus", "video/webm;codecs=vp8,opus", "video/webm"];
-  return candidates.find((type) => MediaRecorder.isTypeSupported(type)) ?? "video/webm";
+  return candidates.find((type) => MediaRecorder.isTypeSupported(type)) ?? "";
 }
 
 function getVideoRecorderErrorMessage(error: unknown) {
@@ -77,7 +89,7 @@ function getVideoRecorderErrorMessage(error: unknown) {
   }
 
   if (error.name === "NotAllowedError" || error.name === "SecurityError") {
-    return "카메라와 마이크 권한이 허용되지 않았습니다. 브라우저 권한을 확인해 주세요.";
+    return permissionMessage;
   }
   if (error.name === "NotFoundError" || error.name === "DevicesNotFoundError") {
     return "카메라 또는 마이크를 찾을 수 없습니다. 기기 연결 상태를 확인해 주세요.";
@@ -89,5 +101,5 @@ function getVideoRecorderErrorMessage(error: unknown) {
     return "현재 기기에서 요청한 영상 설정을 사용할 수 없습니다.";
   }
 
-  return "영상 기록을 시작하지 못했습니다. 카메라와 마이크 권한을 확인해 주세요.";
+  return permissionMessage;
 }

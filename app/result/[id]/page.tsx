@@ -6,6 +6,9 @@ import { ShieldAlert } from "lucide-react";
 export default function DeprecatedResultPage() {
   return (
     <main className="app-shell">
+      <Link className="main-return-button" href="/">
+        메인으로 돌아가기
+      </Link>
       <section className="vault-state-screen">
         <ShieldAlert size={30} aria-hidden="true" />
         <p className="eyebrow">이전 결과 링크</p>

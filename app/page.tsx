@@ -139,7 +139,7 @@ const closingCopy = {
 
 export default function Home() {
   const [step, setStep] = useState<Step>("contentType");
-  const [locale, setLocale] = useState<Locale>("en");
+  const [locale, setLocale] = useState<Locale>("ko");
   const [contentType, setContentType] = useState<ContentType>("family_memory");
   const [preInterviewInfo, setPreInterviewInfo] = useState<PreInterviewInfo>(emptyInfo);
   const [welcomeMessage, setWelcomeMessage] = useState("");
@@ -204,6 +204,12 @@ export default function Home() {
   function changeLocale(nextLocale: Locale) {
     setLocale(nextLocale);
     saveStoredLocale(nextLocale);
+  }
+
+  function returnToMain() {
+    cancelSpeech();
+    window.history.replaceState(null, "", "/");
+    setStep("contentType");
   }
 
   useEffect(() => {
@@ -478,13 +484,22 @@ export default function Home() {
   return (
     <main className="app-shell">
       <section className="memory-panel">
-        <div className="brand-row">
-          <span className="brand-mark">
-            <Heart size={18} aria-hidden="true" />
-          </span>
-          <span>Memory Vault</span>
-        </div>
-        <LanguageSwitcher locale={locale} onChange={changeLocale} />
+        {step !== "contentType" && (
+          <button className="main-return-button" type="button" onClick={returnToMain}>
+            메인으로 돌아가기
+          </button>
+        )}
+        {step !== "contentType" && (
+          <>
+            <div className="brand-row">
+              <span className="brand-mark">
+                <Heart size={18} aria-hidden="true" />
+              </span>
+              <span>Memory Room</span>
+            </div>
+            <LanguageSwitcher locale={locale} onChange={changeLocale} />
+          </>
+        )}
 
         {step === "contentType" && <ContentTypeSelector locale={locale} onSelect={selectContentType} t={t} />}
 

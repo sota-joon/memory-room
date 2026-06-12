@@ -1,7 +1,7 @@
 import type { I18nMessages } from "./types";
 
 export const en: I18nMessages = {
-  brand: "Memory Vault",
+  brand: "Memory Room",
   buttons: { createVault: "Create Memory Vault", next: "Next", start: "Start" },
   content: {
     artist_interview: { title: "Artist Story", description: "Capture why the music began and what you want people to remember.", resultLabel: "Interview, video, vault record" },
@@ -45,6 +45,7 @@ export const en: I18nMessages = {
     futureMoments: ["On a wedding day", "Ten years from now", "When a child is born", "A moment you may meet again"],
     heroSubtitle: "Memories, voices, music, performances. Keep the moments people usually lose.",
     heroTitle: "Save today's story for someone in the future.",
+    mainCta: "기록 시작하기",
     mainMethods: "Main ways to record",
     moreMethods: "View more recording formats",
     popular: "Most recorded stories",
@@ -58,8 +59,15 @@ export const en: I18nMessages = {
       { eyebrow: "Opens on June 5, 2036", title: "Future Reveal Page", body: "“Son, if you are seeing this now, what kind of person was I?”", tag: "Locked now. Opened on the day you choose." },
       { eyebrow: "Parent Life Story Sample", title: "Dinner from the First Paycheck", body: "A small story about wanting to buy dinner for the family with a first paycheck. One life becomes the first draft of a book.", tag: "Life story draft, memory card, video record" },
     ],
+    steps: [
+      { title: "질문에 답하기", body: "Answer a few gentle questions at your own pace." },
+      { title: "음성·영상·편지로 저장하기", body: "Save the story as voice, video, and a written letter." },
+      { title: "원하는 날짜 또는 가족에게 공개하기", body: "Open it only on the date or condition you choose." },
+    ],
     timeline: "How future opening works",
     timelineItems: ["Today", "Create", "2036", "Wedding", "Child born", "Open"],
+    trustBody: "기록은 비공개로 보관되며, 사용자가 정한 조건과 날짜에만 열람됩니다.",
+    trustTitle: "Private by default",
     urgencyLine: "Stories can disappear if we do not save them now.",
     visitorExperiences: "Experiences for Visitors",
   },

@@ -1,7 +1,7 @@
 import type { I18nMessages } from "./types";
 
 export const ja: I18nMessages = {
-  brand: "Memory Vault",
+  brand: "Memory Room",
   buttons: { createVault: "Memory Vaultを作成", next: "次へ", start: "はじめる" },
   content: {
     artist_interview: { title: "アーティストインタビュー", description: "音楽を始めた理由と、これから残したい物語を記録します。", resultLabel: "インタビュー記録、映像、Memory Vault" },
@@ -45,6 +45,7 @@ export const ja: I18nMessages = {
     futureMoments: ["結婚する日", "10年後", "子どもが生まれる日", "いつかまた出会う瞬間"],
     heroSubtitle: "記憶、声、音楽、公演。いつか失われてしまう瞬間を、未来へ残します。",
     heroTitle: "今日の物語を、未来の誰かへ残しましょう。",
+    mainCta: "記録を始める",
     mainMethods: "主な記録方法",
     moreMethods: "ほかの記録方法を見る",
     popular: "よく記録される物語",
@@ -58,8 +59,15 @@ export const ja: I18nMessages = {
       { eyebrow: "2036年6月5日に公開", title: "未来に開くページ", body: "「息子へ。今この記録を見ているなら、私はどんな人だっただろう。」", tag: "今は閉じておき、選んだ日に開きます。" },
       { eyebrow: "親のライフストーリー例", title: "初任給で買った夕食", body: "初めての給料で家族にご飯を食べさせたかったという小さな物語。一人の人生が、一冊の下書きになります。", tag: "ライフストーリー草稿、記憶カード、映像記録" },
     ],
+    steps: [
+      { title: "質問に答える", body: "やさしい質問に、自分のペースで答えます。" },
+      { title: "音声・映像・手紙で保存", body: "声、場面、言葉を記録として整えます。" },
+      { title: "希望の日付や家族に公開", body: "決めた条件になった時だけ開けます。" },
+    ],
     timeline: "未来に開く流れ",
     timelineItems: ["今日", "記録作成", "2036年", "結婚", "子どもの誕生", "公開"],
+    trustBody: "記録は非公開で保管され、利用者が決めた条件と日付でのみ閲覧できます。",
+    trustTitle: "非公開で保管",
     urgencyLine: "今残さなければ、\nいつか消えてしまう物語があります。",
     visitorExperiences: "訪日・訪韓旅行者向け体験",
   },

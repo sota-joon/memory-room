@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import Link from "next/link";
 import { useParams } from "next/navigation";
 import { Archive } from "lucide-react";
 import { LockedVault } from "../../../components/LockedVault";
@@ -36,6 +37,9 @@ export default function VaultPage() {
   if (!isLoaded) {
     return (
       <main className="app-shell">
+        <Link className="main-return-button" href="/">
+          메인으로 돌아가기
+        </Link>
         <section className="memory-panel">
           <p className="eyebrow">Memory Vault</p>
           <h1>Loading Memory Vault</h1>
@@ -47,6 +51,9 @@ export default function VaultPage() {
   if (!vault) {
     return (
       <main className="app-shell">
+        <Link className="main-return-button" href="/">
+          메인으로 돌아가기
+        </Link>
         <section className="vault-state-screen">
           <Archive size={30} aria-hidden="true" />
           <p className="eyebrow">Memory Vault</p>
@@ -61,6 +68,9 @@ export default function VaultPage() {
 
   return (
     <main className="app-shell">
+      <Link className="main-return-button" href="/">
+        메인으로 돌아가기
+      </Link>
       <section className="memory-panel">
         {requestMessage && <p className="result-toast no-print">{requestMessage}</p>}
         {openable ? (

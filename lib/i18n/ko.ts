@@ -1,7 +1,7 @@
 import type { I18nMessages } from "./types";
 
 export const ko: I18nMessages = {
-  brand: "Memory Vault",
+  brand: "Memory Room",
   buttons: { createVault: "기억 저장소 만들기", next: "다음으로", start: "시작하기" },
   content: {
     artist_interview: { title: "아티스트 인터뷰", description: "음악을 시작한 이유와 앞으로 남기고 싶은 이야기를 기록합니다.", resultLabel: "인터뷰 기록, 영상, Memory Vault 저장" },
@@ -34,7 +34,7 @@ export const ko: I18nMessages = {
       parent_life_book: "예: 아버지의 첫 직장 이야기",
       seoul_night_letter: "예: 남산에서 보낸 편지",
     },
-    futureSupportCopy: "지금 남긴 기록은 10년 뒤, 결혼하는 날, 아이가 태어나는 날, 또는 언젠가 다시 만나게 될 순간에 꺼내볼 수 있습니다.",
+    futureSupportCopy: "목소리, 영상, 편지로 인생의 순간을 기록하고 원하는 날에 다시 열어볼 수 있는 프라이빗 메모리 공간입니다.",
     gallery: "Memory Gallery",
     gallerySamples: [
       { eyebrow: "미래 공개 메시지", title: "10년 뒤의 너에게", body: "지금의 나는 아직 서툴지만, 이 마음만은 오래 남기고 싶었어." },
@@ -43,11 +43,12 @@ export const ko: I18nMessages = {
       { eyebrow: "여행 기록", title: "서울의 밤", body: "낯선 도시의 불빛과 오늘의 감정을 미래의 나에게 보냅니다." },
     ],
     futureMoments: ["결혼하는 날", "10년 뒤", "아이가 태어나는 날", "언젠가 다시 만나게 될 순간"],
-    heroSubtitle: "기억, 목소리, 음악, 공연. 당신의 이야기는 언제든 다시 꺼내볼 수 있습니다.",
-    heroTitle: "오늘의 이야기를, 미래의 누군가에게 남겨보세요.",
+    heroSubtitle: "목소리, 영상, 편지로 인생의 순간을 기록하고 원하는 날에 다시 열어볼 수 있는 프라이빗 메모리 공간입니다.",
+    heroTitle: "오늘의 이야기를, 미래의 누군가에게 남기세요.",
+    mainCta: "기록 시작하기",
     mainMethods: "주요 기록 방식",
     moreMethods: "더 많은 기록 방식 보기",
-    popular: "가장 많이 기록하는 이야기",
+    popular: "Memory Room 기능",
     previewDate: "2036년 6월 5일 공개",
     previewMessage: "“아들아. 지금 이 이야기를 보고 있다면 나는 어떤 사람이었을까.”",
     recommendationBadge: "추천",
@@ -58,8 +59,15 @@ export const ko: I18nMessages = {
       { eyebrow: "2036년 6월 5일 공개", title: "미래 공개 화면", body: "“아들아. 지금 이 이야기를 보고 있다면 나는 어떤 사람이었을까.”", tag: "지금은 잠겨 있고, 약속한 날 열립니다." },
       { eyebrow: "부모님의 인생책 샘플", title: "첫 월급으로 산 저녁", body: "처음 받은 월급으로 가족에게 따뜻한 밥을 사주고 싶었다는 이야기. 한 사람의 삶이 한 권의 초안으로 정리됩니다.", tag: "인생책 초안, 기억 카드, 영상 기록" },
     ],
+    steps: [
+      { title: "질문에 답하기", body: "기본 정보와 이어지는 질문에 편하게 답합니다." },
+      { title: "음성·영상·편지로 저장하기", body: "목소리와 장면, 마음을 결과물로 정리합니다." },
+      { title: "원하는 날짜 또는 가족에게 공개하기", body: "정한 조건이 되었을 때만 열람됩니다." },
+    ],
     timeline: "미래 공개 흐름",
     timelineItems: ["오늘", "기록 생성", "2036년", "결혼", "아이 탄생", "공개"],
+    trustBody: "기록은 비공개로 보관되며, 사용자가 정한 조건과 날짜에만 열람됩니다.",
+    trustTitle: "비공개 보관",
     urgencyLine: "지금 남기지 않으면,\n언젠가 사라질 수 있는 이야기들.",
     visitorExperiences: "외국인 전용 기록 체험",
   },

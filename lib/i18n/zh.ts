@@ -1,7 +1,7 @@
 import type { I18nMessages } from "./types";
 
 export const zh: I18nMessages = {
-  brand: "Memory Vault",
+  brand: "Memory Room",
   buttons: { createVault: "创建 Memory Vault", next: "下一步", start: "开始" },
   content: {
     artist_interview: { title: "艺术家访谈", description: "记录你为何开始音乐，以及想留给未来的故事。", resultLabel: "访谈记录、视频、Memory Vault" },
@@ -45,6 +45,7 @@ export const zh: I18nMessages = {
     futureMoments: ["结婚那天", "十年后", "孩子出生那天", "某个再次相遇的时刻"],
     heroSubtitle: "记忆、声音、音乐、演出。把那些容易消失的瞬间，保存到未来。",
     heroTitle: "把今天的故事，留给未来的某个人。",
+    mainCta: "开始记录",
     mainMethods: "主要记录方式",
     moreMethods: "查看更多记录方式",
     popular: "最常记录的故事",
@@ -58,8 +59,15 @@ export const zh: I18nMessages = {
       { eyebrow: "将于2036年6月5日开启", title: "未来开启页面", body: "“儿子，如果你现在看到这段记录，我曾是怎样的人呢？”", tag: "现在锁定，在你选择的日子打开。" },
       { eyebrow: "父母人生故事示例", title: "第一份工资买的晚餐", body: "第一次拿到工资时，想请家人吃一顿饭的小故事。一个人的人生，会整理成一本书的草稿。", tag: "人生故事草稿、记忆卡、视频记录" },
     ],
+    steps: [
+      { title: "回答问题", body: "按照自己的节奏回答几个温和的问题。" },
+      { title: "保存为声音、影像和信", body: "把声音、画面和心意整理成记录。" },
+      { title: "在指定日期或给家人公开", body: "只在你设定的条件和日期打开。" },
+    ],
     timeline: "未来开启流程",
     timelineItems: ["今天", "创建记录", "2036年", "结婚", "孩子出生", "开启"],
+    trustBody: "记录将以非公开方式保存，只有在用户设定的条件和日期下才可查看。",
+    trustTitle: "默认非公开",
     urgencyLine: "如果现在不保存，\n有些故事终有一天会消失。",
     visitorExperiences: "游客专属记录体验",
   },

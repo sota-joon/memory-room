@@ -1,0 +1,11 @@
+[browser] Uncaught TypeError: Cannot read properties of undefined (reading 'map')
+    at ContentTypeSelector (components/ContentTypeSelector.tsx:86:27)
+    at Home (app/page.tsx:447:18)
+  84 |         <>
+  85 |           <section className="home-steps-section" aria-label={t.home.mainCta}>
+> 86 |             {t.home.steps.map((step, index) => (
+     |                           ^
+  87 |               <article className="home-step-card" key={step.title}>
+  88 |                 <span>{index + 1}</span>
+  89 |                 <strong>{step.title}</strong>
+⚠ Fast Refresh had to perform a full reload due to a runtime error.
