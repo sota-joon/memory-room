@@ -54,7 +54,7 @@ type SpeechRecognitionWindow = Window & {
 type RecognitionCallbacks = {
   onEnd: () => void;
   onError: (message: string) => void;
-  onResult: (text: string) => void;
+  onResult: (text: string, isFinal: boolean) => void;
 };
 
 export type SpeechRecognitionController = {
@@ -62,8 +62,7 @@ export type SpeechRecognitionController = {
   stop: () => void;
 };
 
-const unsupportedMessage =
-  "현재 브라우저에서는 음성인식이 지원되지 않습니다. Chrome 사용을 권장합니다.";
+const unsupportedMessage = "이 브라우저는 음성인식을 지원하지 않습니다. Chrome 사용을 권장합니다.";
 
 export function isSpeechRecognitionSupported() {
   if (typeof window === "undefined") return false;
@@ -88,18 +87,33 @@ export function createKoreanSpeechRecognition({
   const recognition = new Recognition();
   recognition.lang = "ko-KR";
   recognition.continuous = true;
-  recognition.interimResults = false;
+  recognition.interimResults = true;
   recognition.maxAlternatives = 1;
 
   recognition.onresult = (event) => {
-    const phrases: string[] = [];
+    const finalPhrases: string[] = [];
+    const interimPhrases: string[] = [];
+
     for (let index = event.resultIndex; index < event.results.length; index += 1) {
       const result = event.results[index];
-      if (result?.isFinal && result[0]?.transcript) {
-        phrases.push(result[0].transcript.trim());
+      const transcript = result?.[0]?.transcript?.trim();
+      if (!transcript) continue;
+
+      if (result.isFinal) {
+        finalPhrases.push(transcript);
+      } else {
+        interimPhrases.push(transcript);
       }
     }
-    if (phrases.length > 0) onResult(phrases.join(" "));
+
+    if (finalPhrases.length > 0) {
+      onResult(finalPhrases.join(" "), true);
+      return;
+    }
+
+    if (interimPhrases.length > 0) {
+      onResult(interimPhrases.join(" "), false);
+    }
   };
 
   recognition.onerror = (event) => {
@@ -121,19 +135,19 @@ export function getUnsupportedSpeechRecognitionMessage() {
 
 function getRecognitionErrorMessage(error: SpeechRecognitionErrorCode) {
   if (error === "not-allowed" || error === "service-not-allowed") {
-    return "마이크 사용 권한이 허용되지 않았습니다. 브라우저의 마이크 권한을 확인해 주세요.";
+    return "마이크 권한이 필요합니다. 브라우저 설정에서 마이크 접근을 허용해주세요.";
   }
   if (error === "audio-capture") {
-    return "마이크를 찾을 수 없습니다. 기기의 마이크 연결 상태를 확인해 주세요.";
+    return "마이크를 찾을 수 없습니다. 기기의 마이크 연결 상태를 확인해주세요.";
   }
   if (error === "no-speech") {
     return "음성이 들리지 않았습니다. 조금 더 가까이에서 다시 말해보세요.";
   }
   if (error === "network") {
-    return "음성인식 연결이 원활하지 않습니다. 네트워크 상태를 확인한 뒤 다시 시도해 주세요.";
+    return "음성인식 연결이 원활하지 않습니다. 네트워크 상태를 확인한 뒤 다시 시도해주세요.";
   }
   if (error === "language-not-supported") {
     return "현재 브라우저에서 한국어 음성인식을 사용할 수 없습니다.";
   }
-  return "음성인식을 시작하지 못했습니다. 잠시 후 다시 시도해 주세요.";
+  return "음성인식을 시작하지 못했습니다. 잠시 뒤 다시 시도해주세요.";
 }

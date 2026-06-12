@@ -11,6 +11,7 @@ import {
   Mic,
   Music2,
   Play,
+  Copy,
   RotateCcw,
   Save,
   Share2,
@@ -35,6 +36,12 @@ import {
 import { startVideoRecorder, stopStream, type VideoRecorderSession } from "../lib/videoRecorder";
 import { cancelSpeech, speakKorean } from "../lib/speech";
 import { clearKioskAppStorage, isKioskMode, purgeKioskBrowserData } from "../lib/kioskMode";
+import {
+  createKoreanSpeechRecognition,
+  getUnsupportedSpeechRecognitionMessage,
+  isSpeechRecognitionSupported,
+  type SpeechRecognitionController,
+} from "../lib/speechRecognition";
 import type { ContentType, Locale } from "../lib/types";
 
 type Props = {
@@ -74,12 +81,19 @@ export function StudioExperience({ contentType, locale, onBack }: Props) {
   const [videoUrl, setVideoUrl] = useState("");
   const [mrFileName, setMrFileName] = useState("");
   const [message, setMessage] = useState("");
+  const [email, setEmail] = useState("");
+  const [emailError, setEmailError] = useState("");
+  const [vaultUrl, setVaultUrl] = useState("");
   const [isAudioRecording, setIsAudioRecording] = useState(false);
   const [isVideoRecording, setIsVideoRecording] = useState(false);
   const [isQuestionSpeaking, setIsQuestionSpeaking] = useState(false);
+  const [isListening, setIsListening] = useState(false);
+  const [isSavingVault, setIsSavingVault] = useState(false);
   const [previewStream, setPreviewStream] = useState<MediaStream | null>(null);
   const audioRef = useRef<AudioRecorderSession | null>(null);
   const audioPlaybackRef = useRef<HTMLAudioElement | null>(null);
+  const recognitionRef = useRef<SpeechRecognitionController | null>(null);
+  const recognitionBaseAnswerRef = useRef("");
   const videoRef = useRef<VideoRecorderSession | null>(null);
   const videoPreviewRef = useRef<HTMLVideoElement | null>(null);
 
@@ -96,6 +110,7 @@ export function StudioExperience({ contentType, locale, onBack }: Props) {
       purgeKioskBrowserData();
       return () => {
         cancelSpeech();
+        recognitionRef.current?.stop();
         stopAudioStream(audioRef.current?.stream ?? null);
         stopStream(previewStream);
       };
@@ -114,6 +129,7 @@ export function StudioExperience({ contentType, locale, onBack }: Props) {
 
     return () => {
       cancelSpeech();
+      recognitionRef.current?.stop();
       stopAudioStream(audioRef.current?.stream ?? null);
       stopStream(previewStream);
     };
@@ -153,6 +169,9 @@ export function StudioExperience({ contentType, locale, onBack }: Props) {
     event.preventDefault();
     if (!answer.trim()) return;
 
+    recognitionRef.current?.stop();
+    setIsListening(false);
+
     const answered = dialogues.map((dialogue, index) =>
       index === dialogues.length - 1 ? { ...dialogue, answer: answer.trim() } : dialogue,
     );
@@ -169,6 +188,97 @@ export function StudioExperience({ contentType, locale, onBack }: Props) {
     setDialogues([...answered, { question: nextQuestion }]);
     setAnswer("");
     speakStudioQuestion(nextQuestion);
+  }
+
+  function toggleSpeechRecognition() {
+    if (isListening) {
+      recognitionRef.current?.stop();
+      setIsListening(false);
+      return;
+    }
+
+    if (!isSpeechRecognitionSupported()) {
+      setMessage(getUnsupportedSpeechRecognitionMessage());
+      return;
+    }
+
+    const controller = createKoreanSpeechRecognition({
+      onEnd: () => setIsListening(false),
+      onError: (nextMessage) => setMessage(nextMessage),
+      onResult: appendRecognizedAnswer,
+    });
+
+    if (!controller) return;
+
+    try {
+      setMessage("");
+      recognitionBaseAnswerRef.current = answer.trim();
+      recognitionRef.current = controller;
+      controller.start();
+      setIsListening(true);
+    } catch {
+      setMessage("음성인식을 시작하지 못했습니다. 마이크 권한을 확인한 뒤 다시 시도해주세요.");
+      setIsListening(false);
+    }
+  }
+
+  function appendRecognizedAnswer(text: string, isFinal: boolean) {
+    const cleanText = text.trim();
+    if (!cleanText) return;
+
+    const baseAnswer = recognitionBaseAnswerRef.current.trim();
+    const nextAnswer = baseAnswer ? `${baseAnswer} ${cleanText}` : cleanText;
+    setAnswer(nextAnswer);
+
+    if (isFinal) {
+      recognitionBaseAnswerRef.current = nextAnswer;
+    }
+  }
+
+  async function saveStudioMemory() {
+    const trimmedEmail = email.trim();
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(trimmedEmail)) {
+      setEmailError("올바른 이메일을 입력해주세요.");
+      return;
+    }
+
+    setEmailError("");
+    setMessage("");
+    setIsSavingVault(true);
+
+    try {
+      const response = await fetch("/api/memories", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          title: outputs.title,
+          recipient: profile.target || profile.name || null,
+          messageText: `${outputs.summary}\n\n${outputs.cards.map((card) => `${card.title}\n${card.body}`).join("\n\n")}`,
+          selectedQuestions: dialogues.map((dialogue) => dialogue.question),
+          answers: dialogues.map((dialogue) => dialogue.answer || ""),
+          audioUrl: null,
+          email: trimmedEmail,
+        }),
+      });
+      const result = (await response.json()) as { error?: string; url?: string };
+      if (!response.ok || !result.url) {
+        throw new Error(result.error || "결과물 저장에 실패했습니다.");
+      }
+
+      const absoluteUrl = new URL(result.url, window.location.origin).toString();
+      setVaultUrl(absoluteUrl);
+      setMessage("기록이 저장되었습니다. 아래 링크로 나중에 다시 확인할 수 있습니다.");
+    } catch (error) {
+      setEmailError(error instanceof Error ? error.message : "결과물 저장에 실패했습니다.");
+    } finally {
+      setIsSavingVault(false);
+    }
+  }
+
+  async function copyVaultLink() {
+    if (!vaultUrl) return;
+    await navigator.clipboard.writeText(vaultUrl);
+    setMessage("링크를 복사했습니다.");
   }
 
   function speakStudioQuestion(question: string) {
@@ -429,6 +539,14 @@ export function StudioExperience({ contentType, locale, onBack }: Props) {
                 <Volume2 size={17} aria-hidden="true" />
                 {isQuestionSpeaking ? copy.questionSpeaking : copy.listenQuestion}
               </button>
+              <button
+                className={`secondary-button compact ${isListening ? "recording-button" : ""}`}
+                type="button"
+                onClick={toggleSpeechRecognition}
+              >
+                <Mic size={17} aria-hidden="true" />
+                {isListening ? "음성 입력 중지" : "음성 입력 시작"}
+              </button>
               <textarea
                 value={answer}
                 onChange={(event) => setAnswer(event.target.value)}
@@ -472,6 +590,40 @@ export function StudioExperience({ contentType, locale, onBack }: Props) {
             )}
           </div>
 
+          <section className="settings-panel">
+            <div>
+              <p className="eyebrow">결과물 저장</p>
+              <h2>나중에 다시 볼 수 있게 저장합니다.</h2>
+              <p className="helper-message">
+                이 기기에는 기록이 저장되지 않습니다. 이메일을 입력하면 고유 링크를 생성합니다.
+              </p>
+            </div>
+            <div className="form-grid">
+              <label>
+                이메일
+                <input
+                  type="email"
+                  value={email}
+                  onChange={(event) => {
+                    setEmail(event.target.value);
+                    setEmailError("");
+                  }}
+                  placeholder="결과물을 받을 이메일을 입력해주세요"
+                />
+              </label>
+            </div>
+            {emailError && <p className="helper-message centered-message">{emailError}</p>}
+            {vaultUrl && (
+              <div className="summary-panel">
+                <p className="eyebrow">저장 완료</p>
+                <p>기록이 저장되었습니다. 아래 링크로 나중에 다시 확인할 수 있습니다.</p>
+                <a className="download-link" href={vaultUrl} target="_blank" rel="noreferrer">
+                  {vaultUrl}
+                </a>
+              </div>
+            )}
+          </section>
+
           <div className="button-row soft-center sticky-actions">
             <button className="secondary-button" type="button" onClick={() => setStep("interview")}>
               {copy.refine}
@@ -480,14 +632,30 @@ export function StudioExperience({ contentType, locale, onBack }: Props) {
               <Download size={17} aria-hidden="true" />
               PDF
             </button>
-            <button className="primary-button compact" type="button" onClick={() => setMessage(copy.saved)}>
+            <button className="primary-button compact" type="button" disabled={isSavingVault} onClick={saveStudioMemory}>
               <Save size={17} aria-hidden="true" />
-              {copy.save}
+              {isSavingVault ? "저장 중..." : "결과물 저장하기"}
             </button>
-            <button className="primary-button compact" type="button" onClick={() => navigator.share?.({ title: outputs.title, text: outputs.coreSentence }).catch(() => setMessage(copy.shareFallback))}>
-              <Share2 size={17} aria-hidden="true" />
-              {copy.share}
-            </button>
+            {vaultUrl && (
+              <>
+                <a className="primary-button compact download-link" href={vaultUrl} target="_blank" rel="noreferrer">
+                  결과물 다시 보기
+                </a>
+                <button className="secondary-button" type="button" onClick={copyVaultLink}>
+                  <Copy size={17} aria-hidden="true" />
+                  링크 복사하기
+                </button>
+                <button className="secondary-button" type="button" onClick={onBack}>
+                  메인으로 돌아가기
+                </button>
+              </>
+            )}
+            {!vaultUrl && (
+              <button className="primary-button compact" type="button" onClick={() => navigator.share?.({ title: outputs.title, text: outputs.coreSentence }).catch(() => setMessage(copy.shareFallback))}>
+                <Share2 size={17} aria-hidden="true" />
+                {copy.share}
+              </button>
+            )}
           </div>
           {message && <p className="helper-message centered-message">{message}</p>}
         </section>

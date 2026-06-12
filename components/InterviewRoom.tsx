@@ -51,6 +51,7 @@ export function InterviewRoom({
   const [videoMessage, setVideoMessage] = useState("");
   const [previewStream, setPreviewStream] = useState<MediaStream | null>(null);
   const recognitionRef = useRef<SpeechRecognitionController | null>(null);
+  const recognitionBaseAnswerRef = useRef("");
   const videoPreviewRef = useRef<HTMLVideoElement | null>(null);
   const recorderRef = useRef<VideoRecorderSession | null>(null);
   const progress = Math.round(((questionNumber - 1) / totalQuestions) * 100);
@@ -124,6 +125,7 @@ export function InterviewRoom({
 
     try {
       setRecognitionMessage("");
+      recognitionBaseAnswerRef.current = answer.trim();
       recognitionRef.current = controller;
       controller.start();
       setIsListening(true);
@@ -133,13 +135,17 @@ export function InterviewRoom({
     }
   }
 
-  function appendRecognizedText(text: string) {
-    setAnswer((previous) => {
-      const cleanText = text.trim();
-      if (!cleanText) return previous;
-      if (!previous.trim()) return cleanText;
-      return `${previous.trimEnd()} ${cleanText}`;
-    });
+  function appendRecognizedText(text: string, isFinal: boolean) {
+    const cleanText = text.trim();
+    if (!cleanText) return;
+
+    const baseAnswer = recognitionBaseAnswerRef.current.trim();
+    const nextAnswer = baseAnswer ? `${baseAnswer} ${cleanText}` : cleanText;
+    setAnswer(nextAnswer);
+
+    if (isFinal) {
+      recognitionBaseAnswerRef.current = nextAnswer;
+    }
   }
 
   return (
@@ -251,13 +257,13 @@ const interviewCopy = {
     body: "떠오르는 만큼만 적어도 괜찮습니다. 답변은 다음 질문과 마지막 편지에 반영됩니다.",
     downloadVideo: "영상 다운로드",
     eyebrow: "마음 기록",
-    listening: "듣는 중...",
+    listening: "음성 입력 중지",
     placeholder: "떠오르는 만큼만 편하게 적어주세요.",
     progress: "진행률",
     question: "질문",
     replay: "다시 듣기",
     saveNext: "답변 저장하고 다음으로",
-    speakWithMic: "마이크로 말하기",
+    speakWithMic: "음성 입력 시작",
     speechStartError: "음성인식을 시작하지 못했습니다. 마이크 권한을 확인한 뒤 다시 시도해 주세요.",
     startVideo: "영상 기록 시작",
     stopVideo: "영상 기록 중지",

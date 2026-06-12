@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createAccessToken } from "../../../lib/memoryToken";
+import { saveMockMemory, shouldUseMockMemoryStore } from "../../../lib/mockMemoryStore";
 import { getSupabaseServerClient } from "../../../lib/supabaseServer";
 
 type CreateMemoryPayload = {
@@ -12,33 +13,55 @@ type CreateMemoryPayload = {
   title?: string;
 };
 
+const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
 export async function POST(request: NextRequest) {
   try {
     const payload = (await request.json()) as CreateMemoryPayload;
     const email = payload.email?.trim();
 
-    if (!email) {
-      return NextResponse.json({ error: "이메일을 입력해주세요." }, { status: 400 });
+    if (!email || !emailPattern.test(email)) {
+      return NextResponse.json({ error: "올바른 이메일을 입력해주세요." }, { status: 400 });
     }
 
     const accessToken = createAccessToken();
     const createdAt = new Date().toISOString();
-    const supabase = getSupabaseServerClient();
-    const row = {
+    const record = {
+      id: crypto.randomUUID(),
       title: payload.title?.trim() || "Memory Room 기록",
       recipient: payload.recipient?.trim() || null,
-      message_text: payload.messageText || "",
-      selected_questions: payload.selectedQuestions ?? [],
+      messageText: payload.messageText || "",
+      selectedQuestions: payload.selectedQuestions ?? [],
       answers: payload.answers ?? [],
-      audio_url: payload.audioUrl || null,
-      created_at: createdAt,
+      audioUrl: payload.audioUrl || null,
+      createdAt,
       email,
-      access_token: accessToken,
+      accessToken,
     };
 
+    if (shouldUseMockMemoryStore()) {
+      saveMockMemory(record);
+      return NextResponse.json({
+        id: record.id,
+        accessToken: record.accessToken,
+        url: `/memory/${record.accessToken}`,
+      });
+    }
+
+    const supabase = getSupabaseServerClient();
     const { data, error } = await supabase
       .from("memories")
-      .insert(row)
+      .insert({
+        title: record.title,
+        recipient: record.recipient,
+        message_text: record.messageText,
+        selected_questions: record.selectedQuestions,
+        answers: record.answers,
+        audio_url: record.audioUrl,
+        created_at: record.createdAt,
+        email: record.email,
+        access_token: record.accessToken,
+      })
       .select("id, access_token")
       .single();
 

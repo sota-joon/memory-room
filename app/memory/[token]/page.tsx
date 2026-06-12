@@ -97,7 +97,9 @@ export default function MemoryResultPage() {
               <h2 className="text-xl font-semibold text-[#2f2a24]">인터뷰 기록</h2>
               {memory.selectedQuestions.map((question, index) => (
                 <div className="rounded-[18px] bg-white/50 p-5" key={`${question}-${index}`}>
-                  <p className="text-sm font-bold text-[#9d5f46]">Q{index + 1}. {question}</p>
+                  <p className="text-sm font-bold text-[#9d5f46]">
+                    Q{index + 1}. {question}
+                  </p>
                   <p className="mt-3 text-sm leading-7 text-[#746a5d]">{memory.answers[index] || ""}</p>
                 </div>
               ))}
