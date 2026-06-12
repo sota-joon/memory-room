@@ -268,11 +268,25 @@ export function StudioExperience({ contentType, locale, onBack }: Props) {
   }
 
   function speakStudioQuestion(question: string) {
-    if (!question) return;
-    speakKorean(question, {
-      onEnd: () => setIsQuestionSpeaking(false),
-      onStart: () => setIsQuestionSpeaking(true),
+    if (!question) {
+      setMessage("재생할 질문이 없습니다.");
+      return;
+    }
+    const started = speakKorean(question, {
+      onEnd: () => {
+        setIsQuestionSpeaking(false);
+        setMessage("");
+      },
+      onError: (nextMessage) => {
+        setIsQuestionSpeaking(false);
+        setMessage(nextMessage);
+      },
+      onStart: () => {
+        setIsQuestionSpeaking(true);
+        setMessage("질문 음성을 재생하고 있습니다.");
+      },
     });
+    if (!started) setIsQuestionSpeaking(false);
   }
 
   async function toggleAudioRecording() {

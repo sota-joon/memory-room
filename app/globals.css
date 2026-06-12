@@ -2405,6 +2405,11 @@ textarea:focus {
   gap: 14px;
 }
 
+.dialogue-answer button {
+  width: 100%;
+  touch-action: manipulation;
+}
+
 .dialogue-answer textarea {
   min-height: 190px;
   padding: 24px;

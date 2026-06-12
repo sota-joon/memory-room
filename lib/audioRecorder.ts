@@ -6,9 +6,13 @@ export type AudioRecorderSession = {
 
 const permissionMessage = "마이크 권한이 필요합니다. 브라우저 설정에서 마이크 접근을 허용해주세요.";
 const unsupportedMessage =
-  "현재 브라우저에서는 음성 녹음이 지원되지 않습니다. 모바일에서는 최신 Chrome 또는 Safari를 사용해주세요.";
+  "현재 브라우저에서는 음성 녹음이 지원되지 않습니다. 최신 Chrome 또는 Safari를 사용해주세요.";
 
 export async function startAudioRecorder(): Promise<AudioRecorderSession> {
+  if (typeof window !== "undefined" && !window.isSecureContext) {
+    throw new Error("마이크는 HTTPS 또는 localhost 환경에서만 사용할 수 있습니다. 모바일에서는 HTTPS 주소로 접속해주세요.");
+  }
+
   if (typeof navigator === "undefined" || !navigator.mediaDevices?.getUserMedia) {
     throw new Error(unsupportedMessage);
   }
@@ -50,7 +54,8 @@ function createAudioSession(stream: MediaStream): AudioRecorderSession {
     mediaRecorder,
     stream,
     stop: () =>
-      new Promise((resolve) => {
+      new Promise((resolve, reject) => {
+        mediaRecorder.onerror = () => reject(new Error("녹음 중 오류가 발생했습니다."));
         mediaRecorder.onstop = () => {
           stopAudioStream(stream);
           resolve(new Blob(chunks, { type: mimeType || "audio/webm" }));
@@ -74,10 +79,13 @@ function getAudioRecorderErrorMessage(error: unknown) {
     return permissionMessage;
   }
   if (error.name === "NotFoundError" || error.name === "DevicesNotFoundError") {
-    return "마이크를 찾을 수 없습니다. 기기 연결 상태를 확인해주세요.";
+    return "마이크를 찾을 수 없습니다. 기기의 마이크 연결 상태를 확인해주세요.";
   }
   if (error.name === "NotReadableError" || error.name === "TrackStartError") {
-    return "마이크를 사용할 수 없습니다. 다른 앱에서 사용 중인지 확인해주세요.";
+    return "마이크를 사용할 수 없습니다. 다른 앱에서 마이크를 사용 중인지 확인해주세요.";
+  }
+  if (error.name === "AbortError") {
+    return "마이크 연결이 중단되었습니다. 다시 시도해주세요.";
   }
 
   return permissionMessage;
