@@ -4,6 +4,9 @@ import { FormEvent, useEffect, useRef, useState } from "react";
 import { ArrowLeft, ArrowRight, Download, Mic, Mic2, Video, Volume2, VolumeX } from "lucide-react";
 import {
   createKoreanSpeechRecognition,
+  diagnoseSpeechRecognitionAccess,
+  getSpeechRecognitionFallbackMessage,
+  getSpeechRecognitionStartErrorMessage,
   getUnsupportedSpeechRecognitionMessage,
   isSpeechRecognitionSupported,
   type SpeechRecognitionController,
@@ -103,7 +106,7 @@ export function InterviewRoom({
     }
   }
 
-  function toggleSpeechRecognition() {
+  async function toggleSpeechRecognition() {
     if (isListening) {
       recognitionRef.current?.stop();
       setIsListening(false);
@@ -115,22 +118,34 @@ export function InterviewRoom({
       return;
     }
 
+    setRecognitionMessage("마이크 권한과 음성인식 지원 상태를 확인하고 있습니다...");
+    const diagnostics = await diagnoseSpeechRecognitionAccess(true);
+    const fallbackMessage = getSpeechRecognitionFallbackMessage(diagnostics);
+    if (fallbackMessage) {
+      setRecognitionMessage(fallbackMessage);
+      return;
+    }
+
     const controller = createKoreanSpeechRecognition({
       onEnd: () => setIsListening(false),
       onError: (message) => setRecognitionMessage(message),
       onResult: appendRecognizedText,
+      onStart: () => {
+        setRecognitionMessage("음성 입력 중입니다. 말한 내용이 답변창에 자동으로 입력됩니다.");
+        setIsListening(true);
+      },
     });
 
     if (!controller) return;
 
     try {
-      setRecognitionMessage("");
+      setRecognitionMessage("음성인식을 시작합니다...");
       recognitionBaseAnswerRef.current = answer.trim();
       recognitionRef.current = controller;
       controller.start();
-      setIsListening(true);
-    } catch {
-      setRecognitionMessage(copy.speechStartError);
+    } catch (error) {
+      console.error("[Memory Room] recognition.start failed", error);
+      setRecognitionMessage(getSpeechRecognitionStartErrorMessage(error) || copy.speechStartError);
       setIsListening(false);
     }
   }

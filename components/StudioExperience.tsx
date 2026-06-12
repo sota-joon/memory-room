@@ -36,8 +36,12 @@ import {
 import { startVideoRecorder, stopStream, type VideoRecorderSession } from "../lib/videoRecorder";
 import { cancelSpeech, speakKorean } from "../lib/speech";
 import { clearKioskAppStorage, isKioskMode, purgeKioskBrowserData } from "../lib/kioskMode";
+import { transcribeAudioWithServer } from "../lib/serverStt";
 import {
   createKoreanSpeechRecognition,
+  diagnoseSpeechRecognitionAccess,
+  getSpeechRecognitionFallbackMessage,
+  getSpeechRecognitionStartErrorMessage,
   getUnsupportedSpeechRecognitionMessage,
   isSpeechRecognitionSupported,
   type SpeechRecognitionController,
@@ -78,6 +82,7 @@ export function StudioExperience({ contentType, locale, onBack }: Props) {
   const [dialogues, setDialogues] = useState<Dialogue[]>([]);
   const [answer, setAnswer] = useState("");
   const [audioUrl, setAudioUrl] = useState("");
+  const [audioBlob, setAudioBlob] = useState<Blob | null>(null);
   const [videoUrl, setVideoUrl] = useState("");
   const [mrFileName, setMrFileName] = useState("");
   const [message, setMessage] = useState("");
@@ -190,7 +195,7 @@ export function StudioExperience({ contentType, locale, onBack }: Props) {
     speakStudioQuestion(nextQuestion);
   }
 
-  function toggleSpeechRecognition() {
+  async function toggleSpeechRecognition() {
     if (isListening) {
       recognitionRef.current?.stop();
       setIsListening(false);
@@ -202,22 +207,34 @@ export function StudioExperience({ contentType, locale, onBack }: Props) {
       return;
     }
 
+    setMessage("마이크 권한과 음성인식 지원 상태를 확인하고 있습니다...");
+    const diagnostics = await diagnoseSpeechRecognitionAccess(true);
+    const fallbackMessage = getSpeechRecognitionFallbackMessage(diagnostics);
+    if (fallbackMessage) {
+      setMessage(fallbackMessage);
+      return;
+    }
+
     const controller = createKoreanSpeechRecognition({
       onEnd: () => setIsListening(false),
       onError: (nextMessage) => setMessage(nextMessage),
       onResult: appendRecognizedAnswer,
+      onStart: () => {
+        setMessage("음성 입력 중입니다. 말한 내용이 답변창에 자동으로 입력됩니다.");
+        setIsListening(true);
+      },
     });
 
     if (!controller) return;
 
     try {
-      setMessage("");
+      setMessage("음성인식을 시작합니다...");
       recognitionBaseAnswerRef.current = answer.trim();
       recognitionRef.current = controller;
       controller.start();
-      setIsListening(true);
-    } catch {
-      setMessage("음성인식을 시작하지 못했습니다. 마이크 권한을 확인한 뒤 다시 시도해주세요.");
+    } catch (error) {
+      console.error("[Memory Room] recognition.start failed", error);
+      setMessage(getSpeechRecognitionStartErrorMessage(error));
       setIsListening(false);
     }
   }
@@ -298,6 +315,7 @@ export function StudioExperience({ contentType, locale, onBack }: Props) {
       const blob = await recorder.stop();
       audioRef.current = null;
       if (audioUrl) URL.revokeObjectURL(audioUrl);
+      setAudioBlob(blob);
       setAudioUrl(URL.createObjectURL(blob));
       setMessage(copy.audioReady);
       return;
@@ -309,6 +327,7 @@ export function StudioExperience({ contentType, locale, onBack }: Props) {
         URL.revokeObjectURL(audioUrl);
         setAudioUrl("");
       }
+      setAudioBlob(null);
       audioRef.current = await startAudioRecorder();
       setIsAudioRecording(true);
       setMessage(copy.audioRecordingStarted);
@@ -326,8 +345,25 @@ export function StudioExperience({ contentType, locale, onBack }: Props) {
   function resetAudioRecording() {
     if (isAudioRecording) return;
     if (audioUrl) URL.revokeObjectURL(audioUrl);
+    setAudioBlob(null);
     setAudioUrl("");
     setMessage("");
+  }
+
+  async function transcribeRecordedAudio() {
+    if (!audioBlob) {
+      setMessage("변환할 녹음 파일이 없습니다. 먼저 마이크 녹음을 완료해주세요.");
+      return;
+    }
+
+    try {
+      setMessage("녹음 파일을 텍스트로 변환하는 서버 STT를 호출하고 있습니다...");
+      const result = await transcribeAudioWithServer({ audio: audioBlob, language: "ko" });
+      setAnswer((current) => (current.trim() ? `${current.trimEnd()} ${result.text}` : result.text));
+      setMessage(`${result.provider} 변환 결과를 답변창에 넣었습니다.`);
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : "음성을 텍스트로 변환하지 못했습니다.");
+    }
   }
 
   async function toggleVideoRecording() {
@@ -462,6 +498,9 @@ export function StudioExperience({ contentType, locale, onBack }: Props) {
                       <button className="secondary-button compact" type="button" onClick={resetAudioRecording}>
                         <RotateCcw size={16} aria-hidden="true" />
                         {copy.recordAgain}
+                      </button>
+                      <button className="secondary-button compact" type="button" onClick={transcribeRecordedAudio}>
+                        녹음 텍스트 변환
                       </button>
                     </div>
                     <a className="secondary-button download-link" href={audioUrl} download={createAudioFileName(profile.name)}>
