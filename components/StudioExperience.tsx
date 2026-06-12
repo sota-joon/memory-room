@@ -34,6 +34,7 @@ import {
 } from "../lib/studioProducts";
 import { startVideoRecorder, stopStream, type VideoRecorderSession } from "../lib/videoRecorder";
 import { cancelSpeech, speakKorean } from "../lib/speech";
+import { clearKioskAppStorage, isKioskMode, purgeKioskBrowserData } from "../lib/kioskMode";
 import type { ContentType, Locale } from "../lib/types";
 
 type Props = {
@@ -91,6 +92,14 @@ export function StudioExperience({ contentType, locale, onBack }: Props) {
     if (window.location.pathname === "/") {
       window.history.replaceState(null, "", `/?studio=${contentType}`);
     }
+    if (isKioskMode()) {
+      purgeKioskBrowserData();
+      return () => {
+        cancelSpeech();
+        stopAudioStream(audioRef.current?.stream ?? null);
+        stopStream(previewStream);
+      };
+    }
     const stored = window.localStorage.getItem(`memoryVaultStudio:${contentType}`);
     if (stored) {
       try {
@@ -117,6 +126,7 @@ export function StudioExperience({ contentType, locale, onBack }: Props) {
   }, [previewStream]);
 
   useEffect(() => {
+    if (isKioskMode()) return;
     window.localStorage.setItem(
       `memoryVaultStudio:${contentType}`,
       JSON.stringify({ contentType, dialogues, profile, step, updatedAt: new Date().toISOString() }),

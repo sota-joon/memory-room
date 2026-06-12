@@ -1,4 +1,5 @@
 import type { MemoryVault } from "./types";
+import { isKioskMode } from "./kioskMode";
 
 const VAULT_INDEX_KEY = "memory-vault-index-v1";
 const VAULT_PREFIX = "memory-vault:";
@@ -16,6 +17,7 @@ export function createAccessCode() {
 
 export function saveMemoryVault(vault: MemoryVault) {
   if (typeof window === "undefined") return;
+  if (isKioskMode()) return;
 
   try {
     window.localStorage.setItem(`${VAULT_PREFIX}${vault.vaultId}`, JSON.stringify(vault));
@@ -30,6 +32,7 @@ export function saveMemoryVault(vault: MemoryVault) {
 
 export function loadMemoryVault(vaultId: string) {
   if (typeof window === "undefined") return null;
+  if (isKioskMode()) return null;
 
   try {
     const stored = window.localStorage.getItem(`${VAULT_PREFIX}${vaultId}`);

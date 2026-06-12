@@ -4,6 +4,7 @@ import { ko } from "./ko";
 import { zh } from "./zh";
 import type { I18nMessages } from "./types";
 import type { Locale } from "../types";
+import { isKioskMode } from "../kioskMode";
 
 export const locales: Locale[] = ["ko", "en", "ja", "zh"];
 
@@ -31,6 +32,7 @@ export function detectBrowserLocale(language?: string): Locale {
 
 export function loadStoredLocale(): Locale | null {
   if (typeof window === "undefined") return null;
+  if (isKioskMode()) return null;
   try {
     const stored = window.localStorage.getItem(LOCALE_STORAGE_KEY);
     return stored && locales.includes(stored as Locale) ? (stored as Locale) : null;
@@ -41,6 +43,7 @@ export function loadStoredLocale(): Locale | null {
 
 export function saveStoredLocale(locale: Locale) {
   if (typeof window === "undefined") return;
+  if (isKioskMode()) return;
   try {
     window.localStorage.setItem(LOCALE_STORAGE_KEY, locale);
   } catch {

@@ -71,6 +71,9 @@ export function FinalOutputs({
         <p className="eyebrow">{copy.eyebrow}</p>
         <h1>{copy.title}</h1>
         <p className="letter-note">{copy.body}</p>
+        <p className="helper-message">
+          이 기기에는 기록이 저장되지 않습니다. 결과물은 인증 후 다시 확인할 수 있습니다.
+        </p>
       </div>
 
       <article className="letter-paper">
@@ -192,10 +195,10 @@ const revisionActionLabels = {
 
 const outputCopy = {
   ko: {
-    body: "아래 결과물은 URL에 직접 담기지 않습니다. 저장소를 만들면 이 브라우저에 보관되고, 링크에는 기록 ID만 들어갑니다.",
-    eyebrow: "기록 저장소 준비",
-    openVault: "저장소 열기",
-    reset: "새 기록 시작",
+    body: "아래 결과물은 지금 화면에서만 임시로 확인할 수 있습니다. 공용 기기에는 저장하지 않으며, 결과 확인은 이메일 또는 휴대폰 인증 후 제공됩니다.",
+    eyebrow: "임시 결과 확인",
+    openVault: "보안 링크 확인",
+    reset: "완료하고 메인으로",
     revise: "편지 다듬기",
     summary: "기억 저장소 요약",
     title: "편지가 아니라, 보관될 기록으로 정리했습니다.",

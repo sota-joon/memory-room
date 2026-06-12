@@ -20,6 +20,7 @@ import {
 import { createFutureMessage, createMemoryCard, createVaultSummary } from "../lib/outputPrompt";
 import { cancelSpeech, speakKorean } from "../lib/speech";
 import { getInitialLocale, getMessages, saveStoredLocale } from "../lib/i18n";
+import { clearKioskAppStorage, isKioskMode, purgeKioskBrowserData } from "../lib/kioskMode";
 import {
   clearStoredInterview,
   loadStoredInterview,
@@ -173,6 +174,12 @@ export default function Home() {
   useEffect(() => {
     const initialLocale = getInitialLocale();
     setLocale(initialLocale);
+    if (isKioskMode()) {
+      purgeKioskBrowserData();
+      setStep("contentType");
+      setIsLoaded(true);
+      return;
+    }
     const shouldResume = new URLSearchParams(window.location.search).get("resume") === "1";
     const stored = loadStoredInterview();
     if (stored && shouldResume) {
@@ -203,17 +210,17 @@ export default function Home() {
 
   function changeLocale(nextLocale: Locale) {
     setLocale(nextLocale);
-    saveStoredLocale(nextLocale);
+    if (!isKioskMode()) saveStoredLocale(nextLocale);
   }
 
   function returnToMain() {
-    cancelSpeech();
-    window.history.replaceState(null, "", "/");
-    setStep("contentType");
+    resetInterview();
+    clearKioskAppStorage();
   }
 
   useEffect(() => {
     if (!isLoaded) return;
+    if (isKioskMode()) return;
     const record: InterviewRecord = {
       preInterviewInfo,
       welcomeMessage,
@@ -252,6 +259,28 @@ export default function Home() {
     voiceEnabled,
     welcomeMessage,
   ]);
+
+  useEffect(() => {
+    if (!isLoaded || !isKioskMode()) return;
+
+    let timeoutId: number;
+    const resetTimer = () => {
+      window.clearTimeout(timeoutId);
+      timeoutId = window.setTimeout(() => {
+        resetInterview();
+        purgeKioskBrowserData();
+      }, 5 * 60 * 1000);
+    };
+    const events = ["click", "keydown", "touchstart", "mousemove", "scroll"];
+    events.forEach((eventName) => window.addEventListener(eventName, resetTimer, { passive: true }));
+    resetTimer();
+
+    return () => {
+      window.clearTimeout(timeoutId);
+      events.forEach((eventName) => window.removeEventListener(eventName, resetTimer));
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isLoaded, recordedVideoUrl]);
 
   const speakWithGuide = useCallback((text: string) => {
     speakKorean(text, {
@@ -401,6 +430,7 @@ export default function Home() {
     const now = new Date().toISOString();
     const computedUnlockDate = getComputedUnlockDate(unlockType, unlockDate);
     const vaultId = createVaultId();
+    const accessCode = createAccessCode();
     saveMemoryVault({
       vaultId,
       contentType,
@@ -423,7 +453,7 @@ export default function Home() {
       guardians: guardian.name || guardian.phone || guardian.email ? [guardian] : [],
       share: {
         publicSlug: vaultId,
-        accessCode: createAccessCode(),
+        accessCode,
         allowLinkPreview: false,
       },
       privacy: {
@@ -435,7 +465,8 @@ export default function Home() {
       createdAt: now,
       updatedAt: now,
     });
-    setVaultUrl(getVaultUrl(vaultId));
+    const protectedUrl = `${getVaultUrl(vaultId)}?token=${accessCode}`;
+    setVaultUrl(protectedUrl);
   }
 
   function saveRecordedVideo(blob: Blob) {
@@ -445,7 +476,9 @@ export default function Home() {
 
   function resetInterview() {
     clearStoredInterview();
+    clearKioskAppStorage();
     cancelSpeech();
+    window.history.replaceState(null, "", "/");
     setStep("contentType");
     setPreInterviewInfo(emptyInfo);
     setWelcomeMessage("");

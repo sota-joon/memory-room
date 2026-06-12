@@ -174,6 +174,9 @@ export function ContentTypeSelector({ onSelect, t }: Props) {
           <p className="mt-5 max-w-[560px] text-[15px] leading-8 text-[#6f6558] sm:text-base">
             목소리, 영상, 편지로 인생의 순간을 기록하고 원하는 날에 다시 열어볼 수 있는 프라이빗 메모리 공간입니다.
           </p>
+          <p className="mt-4 inline-flex max-w-[560px] rounded-full bg-white/70 px-4 py-2 text-sm font-semibold text-[#6f5b48] shadow-sm">
+            이 기기는 공용 기기입니다. 기록 완료 후 입력 내용은 자동으로 삭제됩니다.
+          </p>
           <div className="mt-8 flex flex-wrap gap-3">
             <button
               className="group inline-flex min-h-14 items-center gap-3 rounded-full bg-[#303827] px-6 text-sm font-bold text-white shadow-[0_18px_38px_rgba(48,56,39,0.28)] transition hover:-translate-y-0.5 hover:bg-[#22291c]"

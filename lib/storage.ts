@@ -17,11 +17,13 @@ export type {
 } from "./types";
 
 import type { InterviewRecord } from "./types";
+import { isKioskMode } from "./kioskMode";
 
 const STORAGE_KEY = "memory-interview-mvp-v5";
 
 export function loadStoredInterview() {
   if (typeof window === "undefined") return null;
+  if (isKioskMode()) return null;
 
   try {
     const stored = window.localStorage.getItem(STORAGE_KEY);
@@ -35,6 +37,7 @@ export function loadStoredInterview() {
 
 export function saveStoredInterview(record: InterviewRecord) {
   if (typeof window === "undefined") return;
+  if (isKioskMode()) return;
 
   try {
     window.localStorage.setItem(STORAGE_KEY, JSON.stringify(record));

@@ -2,8 +2,8 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { useParams } from "next/navigation";
-import { Archive } from "lucide-react";
+import { useParams, useSearchParams } from "next/navigation";
+import { Archive, ShieldCheck } from "lucide-react";
 import { LockedVault } from "../../../components/LockedVault";
 import { VaultView } from "../../../components/VaultView";
 import type { MemoryVault } from "../../../lib/types";
@@ -13,25 +13,27 @@ import { getVaultUrl, loadMemoryVault } from "../../../lib/vaultStorage";
 
 export default function VaultPage() {
   const params = useParams<{ vaultId: string }>();
+  const searchParams = useSearchParams();
   const [vaultId, setVaultId] = useState("");
   const [vault, setVault] = useState<MemoryVault | null>(null);
   const [isLoaded, setIsLoaded] = useState(false);
   const [requestMessage, setRequestMessage] = useState("");
+  const token = searchParams.get("token");
   const locale = vault?.locale ?? getInitialLocale();
   const t = getMessages(locale);
 
   useEffect(() => {
     const nextVaultId = params.vaultId;
     setVaultId(nextVaultId);
-    setVault(loadMemoryVault(nextVaultId));
+    setVault(token ? loadMemoryVault(nextVaultId) : null);
     setIsLoaded(true);
-  }, [params.vaultId]);
+  }, [params.vaultId, token]);
 
   function unlockForTest() {
     if (!vaultId) return;
     manuallyUnlockVault(vaultId);
     setVault(loadMemoryVault(vaultId));
-    setRequestMessage(vaultPageCopy[locale].testUnlocked);
+    setRequestMessage("테스트 승인으로 기록을 열었습니다.");
   }
 
   if (!isLoaded) {
@@ -41,8 +43,26 @@ export default function VaultPage() {
           메인으로 돌아가기
         </Link>
         <section className="memory-panel">
-          <p className="eyebrow">Memory Vault</p>
-          <h1>Loading Memory Vault</h1>
+          <p className="eyebrow">Private Memory Room</p>
+          <h1>기록 확인 준비 중입니다.</h1>
+        </section>
+      </main>
+    );
+  }
+
+  if (!token) {
+    return (
+      <main className="app-shell">
+        <Link className="main-return-button" href="/">
+          메인으로 돌아가기
+        </Link>
+        <section className="vault-state-screen">
+          <ShieldCheck size={32} aria-hidden="true" />
+          <p className="eyebrow">Private Memory Room</p>
+          <h1>인증이 필요한 기록입니다.</h1>
+          <p>
+            이 결과물은 공용 기기에 저장되지 않습니다. 이메일 또는 휴대폰 인증 후 발급된 보안 링크로만 열람할 수 있습니다.
+          </p>
         </section>
       </main>
     );
@@ -56,9 +76,11 @@ export default function VaultPage() {
         </Link>
         <section className="vault-state-screen">
           <Archive size={30} aria-hidden="true" />
-          <p className="eyebrow">Memory Vault</p>
-          <h1>{t.vault.missingTitle}</h1>
-          <p>{t.vault.missingBody}</p>
+          <p className="eyebrow">Private Memory Room</p>
+          <h1>서버 인증 저장소가 필요합니다.</h1>
+          <p>
+            MVP 키오스크 모드에서는 결과물을 이 브라우저에 남기지 않습니다. 실제 열람은 서버 저장 및 이메일/휴대폰 인증 연결 후 제공됩니다.
+          </p>
         </section>
       </main>
     );
@@ -79,9 +101,7 @@ export default function VaultPage() {
           <LockedVault
             vault={vault}
             t={t}
-            onRequestOpen={() =>
-              setRequestMessage(vaultPageCopy[locale].requestSent)
-            }
+            onRequestOpen={() => setRequestMessage("열람 요청이 접수된 것으로 표시했습니다.")}
             onTestUnlock={unlockForTest}
           />
         )}
@@ -89,22 +109,3 @@ export default function VaultPage() {
     </main>
   );
 }
-
-const vaultPageCopy = {
-  ko: {
-    requestSent: "열람 요청이 접수된 것처럼 표시했습니다. MVP에서는 실제 알림이 발송되지 않습니다.",
-    testUnlocked: "테스트 승인으로 기록을 열었습니다. 실제 서비스에서는 가족 관리자 인증이 필요합니다.",
-  },
-  en: {
-    requestSent: "Access request shown as received. This MVP does not send a real notification.",
-    testUnlocked: "Opened with test approval. A real service would require family manager verification.",
-  },
-  ja: {
-    requestSent: "閲覧リクエストを受け付けた表示にしました。MVPでは実際の通知は送信されません。",
-    testUnlocked: "テスト承認で記録を開きました。実際のサービスでは家族管理者の認証が必要です。",
-  },
-  zh: {
-    requestSent: "已显示为收到查看请求。MVP版本不会发送真实通知。",
-    testUnlocked: "已通过测试批准打开记录。正式服务需要家庭管理员验证。",
-  },
-};
