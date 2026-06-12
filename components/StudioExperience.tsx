@@ -37,15 +37,6 @@ import { startVideoRecorder, stopStream, type VideoRecorderSession } from "../li
 import { cancelSpeech, speakKorean } from "../lib/speech";
 import { clearKioskAppStorage, isKioskMode, purgeKioskBrowserData } from "../lib/kioskMode";
 import { transcribeAudioWithServer } from "../lib/serverStt";
-import {
-  createKoreanSpeechRecognition,
-  diagnoseSpeechRecognitionAccess,
-  getSpeechRecognitionFallbackMessage,
-  getSpeechRecognitionStartErrorMessage,
-  getUnsupportedSpeechRecognitionMessage,
-  isSpeechRecognitionSupported,
-  type SpeechRecognitionController,
-} from "../lib/speechRecognition";
 import type { ContentType, Locale } from "../lib/types";
 
 type Props = {
@@ -97,8 +88,7 @@ export function StudioExperience({ contentType, locale, onBack }: Props) {
   const [previewStream, setPreviewStream] = useState<MediaStream | null>(null);
   const audioRef = useRef<AudioRecorderSession | null>(null);
   const audioPlaybackRef = useRef<HTMLAudioElement | null>(null);
-  const recognitionRef = useRef<SpeechRecognitionController | null>(null);
-  const recognitionBaseAnswerRef = useRef("");
+  const speechAudioRef = useRef<AudioRecorderSession | null>(null);
   const videoRef = useRef<VideoRecorderSession | null>(null);
   const videoPreviewRef = useRef<HTMLVideoElement | null>(null);
 
@@ -115,7 +105,7 @@ export function StudioExperience({ contentType, locale, onBack }: Props) {
       purgeKioskBrowserData();
       return () => {
         cancelSpeech();
-        recognitionRef.current?.stop();
+        stopAudioStream(speechAudioRef.current?.stream ?? null);
         stopAudioStream(audioRef.current?.stream ?? null);
         stopStream(previewStream);
       };
@@ -134,7 +124,7 @@ export function StudioExperience({ contentType, locale, onBack }: Props) {
 
     return () => {
       cancelSpeech();
-      recognitionRef.current?.stop();
+      stopAudioStream(speechAudioRef.current?.stream ?? null);
       stopAudioStream(audioRef.current?.stream ?? null);
       stopStream(previewStream);
     };
@@ -172,9 +162,12 @@ export function StudioExperience({ contentType, locale, onBack }: Props) {
 
   function submitAnswer(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
+    if (isListening) {
+      setMessage("음성 입력 중입니다. 중지를 눌러 텍스트 변환을 마친 뒤 저장해주세요.");
+      return;
+    }
     if (!answer.trim()) return;
 
-    recognitionRef.current?.stop();
     setIsListening(false);
 
     const answered = dialogues.map((dialogue, index) =>
@@ -197,58 +190,34 @@ export function StudioExperience({ contentType, locale, onBack }: Props) {
 
   async function toggleSpeechRecognition() {
     if (isListening) {
-      recognitionRef.current?.stop();
-      setIsListening(false);
+      const recorder = speechAudioRef.current;
+      if (!recorder) {
+        setIsListening(false);
+        return;
+      }
+
+      try {
+        setIsListening(false);
+        setMessage("음성을 텍스트로 변환하고 있습니다...");
+        const blob = await recorder.stop();
+        speechAudioRef.current = null;
+        const result = await transcribeAudioWithServer({ audio: blob, language: "ko" });
+        setAnswer((current) => (current.trim() ? `${current.trimEnd()} ${result.text}` : result.text));
+        setMessage("음성 입력이 답변창에 입력되었습니다. 필요하면 직접 수정해주세요.");
+      } catch (error) {
+        setMessage(error instanceof Error ? error.message : "음성을 텍스트로 변환하지 못했습니다.");
+      }
       return;
     }
-
-    if (!isSpeechRecognitionSupported()) {
-      setMessage(getUnsupportedSpeechRecognitionMessage());
-      return;
-    }
-
-    setMessage("마이크 권한과 음성인식 지원 상태를 확인하고 있습니다...");
-    const diagnostics = await diagnoseSpeechRecognitionAccess(true);
-    const fallbackMessage = getSpeechRecognitionFallbackMessage(diagnostics);
-    if (fallbackMessage) {
-      setMessage(fallbackMessage);
-      return;
-    }
-
-    const controller = createKoreanSpeechRecognition({
-      onEnd: () => setIsListening(false),
-      onError: (nextMessage) => setMessage(nextMessage),
-      onResult: appendRecognizedAnswer,
-      onStart: () => {
-        setMessage("음성 입력 중입니다. 말한 내용이 답변창에 자동으로 입력됩니다.");
-        setIsListening(true);
-      },
-    });
-
-    if (!controller) return;
 
     try {
-      setMessage("음성인식을 시작합니다...");
-      recognitionBaseAnswerRef.current = answer.trim();
-      recognitionRef.current = controller;
-      controller.start();
+      setMessage("마이크 권한을 요청합니다. 허용 후 답변을 말씀해주세요.");
+      speechAudioRef.current = await startAudioRecorder();
+      setIsListening(true);
+      setMessage("음성 입력 중입니다. 말을 마치면 음성 입력 중지를 눌러주세요.");
     } catch (error) {
-      console.error("[Memory Room] recognition.start failed", error);
-      setMessage(getSpeechRecognitionStartErrorMessage(error));
+      setMessage(error instanceof Error ? error.message : "마이크 녹음을 시작하지 못했습니다.");
       setIsListening(false);
-    }
-  }
-
-  function appendRecognizedAnswer(text: string, isFinal: boolean) {
-    const cleanText = text.trim();
-    if (!cleanText) return;
-
-    const baseAnswer = recognitionBaseAnswerRef.current.trim();
-    const nextAnswer = baseAnswer ? `${baseAnswer} ${cleanText}` : cleanText;
-    setAnswer(nextAnswer);
-
-    if (isFinal) {
-      recognitionBaseAnswerRef.current = nextAnswer;
     }
   }
 
