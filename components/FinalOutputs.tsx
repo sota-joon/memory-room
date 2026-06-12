@@ -13,6 +13,7 @@ type Props = {
   finalLetter: string;
   futureMessage: string;
   guardian: Guardian;
+  isSaving: boolean;
   memoryCard: string;
   locale: Locale;
   recipient: Recipient;
@@ -44,6 +45,7 @@ export function FinalOutputs({
   finalLetter,
   futureMessage,
   guardian,
+  isSaving,
   memoryCard,
   recipient,
   summary,
@@ -63,7 +65,7 @@ export function FinalOutputs({
 }: Props) {
   const copy = outputCopy[locale];
   const needsDate = unlockType === "specific_date" || unlockType === "yearly_reminder";
-  const canCreateVault = consentAccepted && hasContact(recipient) && (!needsDate || Boolean(unlockDate));
+  const canCreateVault = consentAccepted && Boolean(recipient.email?.trim()) && (!needsDate || Boolean(unlockDate)) && !isSaving;
 
   return (
     <section className="letter-screen">
@@ -138,7 +140,7 @@ export function FinalOutputs({
         </button>
         <button className="primary-button compact" type="button" disabled={!canCreateVault} onClick={onCreateVault}>
           <Vault size={17} aria-hidden="true" />
-          {t.buttons.createVault}
+          {isSaving ? "저장 중..." : copy.saveMemory}
         </button>
         {vaultUrl && (
           <a className="primary-button compact download-link" href={vaultUrl} target="_blank" rel="noreferrer">
@@ -148,18 +150,14 @@ export function FinalOutputs({
         )}
       </div>
 
-      {!hasContact(recipient) && (
-        <p className="helper-message centered-message">{t.errors.contactRequired}</p>
+      {!recipient.email?.trim() && (
+        <p className="helper-message centered-message">결과물 저장과 재열람을 위해 이메일을 입력해주세요.</p>
       )}
       {needsDate && !unlockDate && (
         <p className="helper-message centered-message">{t.errors.dateRequired}</p>
       )}
     </section>
   );
-}
-
-function hasContact(recipient: Recipient) {
-  return Boolean(recipient.phone?.trim() || recipient.email?.trim());
 }
 
 const revisionActionLabels = {
@@ -200,15 +198,17 @@ const outputCopy = {
     openVault: "보안 링크 확인",
     reset: "완료하고 메인으로",
     revise: "편지 다듬기",
+    saveMemory: "결과물 저장하기",
     summary: "기억 저장소 요약",
     title: "편지가 아니라, 보관될 기록으로 정리했습니다.",
   },
   en: {
-    body: "The result is not stored inside the URL. When you create a vault, it is kept in this browser and the link only contains a vault ID.",
+    body: "This result is temporary on this screen. Save it to the server to open it later with your private link.",
     eyebrow: "Vault Preview",
     openVault: "Open vault",
     reset: "Start a new record",
     revise: "Refine the letter",
+    saveMemory: "Save result",
     summary: "Vault summary",
     title: "This is more than a letter. It is a record to keep.",
   },
@@ -218,6 +218,7 @@ const outputCopy = {
     openVault: "Vaultを開く",
     reset: "新しい記録を始める",
     revise: "手紙を整える",
+    saveMemory: "結果を保存する",
     summary: "Vaultの要約",
     title: "手紙ではなく、保管できる記録としてまとめました。",
   },
@@ -227,6 +228,7 @@ const outputCopy = {
     openVault: "打开Vault",
     reset: "开始新记录",
     revise: "修改信件",
+    saveMemory: "保存结果",
     summary: "Vault摘要",
     title: "这不只是一封信，而是一份可以保存的记录。",
   },

@@ -37,7 +37,6 @@ import {
   type Recipient,
   type UnlockType,
 } from "../lib/storage";
-import { createAccessCode, createVaultId, getVaultUrl, saveMemoryVault } from "../lib/vaultStorage";
 import { createVideoFileName } from "../lib/videoRecorder";
 
 type Step = "contentType" | "studio" | "preInterview" | "welcome" | "interview" | "closing" | "outputs";
@@ -166,6 +165,7 @@ export default function Home() {
   const [consentAccepted, setConsentAccepted] = useState(false);
   const [createdAt, setCreatedAt] = useState("");
   const [isLoaded, setIsLoaded] = useState(false);
+  const [isSavingMemory, setIsSavingMemory] = useState(false);
 
   const currentQuestionText = questions[currentQuestion] ?? "";
   const t = getMessages(locale);
@@ -413,13 +413,13 @@ export default function Home() {
     setFinalLetter(revisedLetter);
   }
 
-  function createVault() {
+  async function createVault() {
     if (!consentAccepted) {
       window.alert(t.errors.privacyRequired);
       return;
     }
-    if (!recipient.phone?.trim() && !recipient.email?.trim()) {
-      window.alert(t.errors.contactRequired);
+    if (!recipient.email?.trim()) {
+      window.alert("결과물 저장을 위해 이메일을 입력해주세요.");
       return;
     }
     if ((unlockType === "specific_date" || unlockType === "yearly_reminder") && !unlockDate) {
@@ -427,46 +427,31 @@ export default function Home() {
       return;
     }
 
-    const now = new Date().toISOString();
-    const computedUnlockDate = getComputedUnlockDate(unlockType, unlockDate);
-    const vaultId = createVaultId();
-    const accessCode = createAccessCode();
-    saveMemoryVault({
-      vaultId,
-      contentType,
-      locale,
-      status: unlockType === "now" || unlockType === "yearly_reminder" ? "unlocked" : "locked",
-      creatorName: preInterviewInfo.customerName || "나",
-      subjectName: preInterviewInfo.subjectName,
-      relationship: preInterviewInfo.relationship,
-      preInterviewInfo: { ...preInterviewInfo },
-      interview: { answers, createdAt: createdAt || now, questions },
-      outputs: { letter: finalLetter, memoryCard, summary, futureMessage },
-      unlock: {
-        type: unlockType,
-        date: computedUnlockDate,
-        conditionLabel: getConditionLabel(unlockType),
-        yearlyMonthDay: unlockType === "yearly_reminder" ? unlockDate.slice(5) : undefined,
-        isManuallyUnlocked: false,
-      },
-      recipients: [recipient],
-      guardians: guardian.name || guardian.phone || guardian.email ? [guardian] : [],
-      share: {
-        publicSlug: vaultId,
-        accessCode,
-        allowLinkPreview: false,
-      },
-      privacy: {
-        consentAccepted,
-        consentAcceptedAt: now,
-        deletionRequested: false,
-        retentionPolicy: "temporary",
-      },
-      createdAt: now,
-      updatedAt: now,
-    });
-    const protectedUrl = `${getVaultUrl(vaultId)}?token=${accessCode}`;
-    setVaultUrl(protectedUrl);
+    setIsSavingMemory(true);
+    try {
+      const response = await fetch("/api/memories", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          title: `${preInterviewInfo.customerName || "나"}의 Memory Room 기록`,
+          recipient: preInterviewInfo.subjectName || recipient.name,
+          messageText: finalLetter,
+          selectedQuestions: questions,
+          answers,
+          audioUrl: null,
+          email: recipient.email,
+        }),
+      });
+      const result = (await response.json()) as { error?: string; url?: string };
+      if (!response.ok || !result.url) {
+        throw new Error(result.error || "결과물 저장에 실패했습니다.");
+      }
+      setVaultUrl(`${window.location.origin}${result.url}`);
+    } catch (error) {
+      window.alert(error instanceof Error ? error.message : "결과물 저장에 실패했습니다.");
+    } finally {
+      setIsSavingMemory(false);
+    }
   }
 
   function saveRecordedVideo(blob: Blob) {
@@ -534,7 +519,14 @@ export default function Home() {
           </>
         )}
 
-        {step === "contentType" && <ContentTypeSelector locale={locale} onSelect={selectContentType} t={t} />}
+        {step === "contentType" && (
+          <ContentTypeSelector
+            locale={locale}
+            onChangeLocale={changeLocale}
+            onSelect={selectContentType}
+            t={t}
+          />
+        )}
 
         {step === "studio" && (
           <StudioExperience
@@ -654,6 +646,7 @@ export default function Home() {
             unlockDate={unlockDate}
             unlockType={unlockType}
             vaultUrl={vaultUrl}
+            isSaving={isSavingMemory}
             t={t}
             locale={locale}
             onChangeConsent={setConsentAccepted}

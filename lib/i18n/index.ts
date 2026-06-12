@@ -53,7 +53,5 @@ export function saveStoredLocale(locale: Locale) {
 
 export function getInitialLocale(): Locale {
   if (typeof window === "undefined") return "ko";
-  const queryLocale = new URLSearchParams(window.location.search).get("lang");
-  if (queryLocale && locales.includes(queryLocale as Locale)) return queryLocale as Locale;
   return "ko";
 }
