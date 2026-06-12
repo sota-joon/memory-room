@@ -1500,3 +1500,7 @@
  GET /studio/family_memory 200 in 66ms (next.js: 24ms, application-code: 42ms)
 ✓ Compiled in 201ms
  GET /studio/family_memory 200 in 160ms (next.js: 25ms, application-code: 136ms)
+  Reload env: .env.local
+ GET /memory/6eb9dcde24f3250165c6f24c35a689c4dcf255adfa81bbbc2b3fd4625ec3b132 200 in 464ms (next.js: 207ms, application-code: 257ms)
+ GET /studio/family_memory 200 in 175ms (next.js: 65ms, application-code: 110ms)
+ GET / 200 in 59ms (next.js: 19ms, application-code: 40ms)
